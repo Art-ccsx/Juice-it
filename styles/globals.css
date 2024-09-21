@@ -1,0 +1,108 @@
+/* @tailwind base; */
+/* @tailwind components; */
+/* @tailwind utilities; */
+
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+/* Global styles */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  @apply bg-game-bg text-game-text;
+}
+
+button {
+  @apply transition-colors duration-200;
+}
+
+button:disabled {
+  @apply opacity-50 cursor-not-allowed;
+}
+
+/* Keep the active slot style */
+.active-slot {
+  @apply border-2 border-blue-500;
+}
+
+/* Customize scrollbar for webkit browsers */
+.overflow-y-auto::-webkit-scrollbar {
+  width: 8px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: #2D3748;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background-color: #4A5568;
+  border-radius: 4px;
+}
+
+/* For Firefox */
+.overflow-y-auto {
+  scrollbar-width: thin;
+  scrollbar-color: #4A5568 #2D3748;
+}
+
+/* Remove gaps between inventory slots */
+.inventory-grid {
+  @apply grid grid-cols-10 bg-gray-800 p-[0px] rounded-md;
+}
+
+/* Apply padding to all slots and increase size by 1.5 times */
+.inventory-slot,
+.active-map-slot,
+.glossary-item {
+  @apply w-16 h-16 border border-gray-600 rounded-none overflow-hidden bg-gray-700 p-0;
+}
+
+/* Custom size for 1.5x larger slots */
+@media (min-width: 640px) {
+  .inventory-slot,
+  .active-map-slot,
+  .glossary-item {
+    width: 4rem;
+    height: 4rem;
+  }
+}
+
+/* Remove gaps between glossary items */
+.glossary-grid {
+  @apply flex flex-wrap;
+  gap: 0; /* Add this line to remove gaps */
+}
+
+/* Add this new style for glossary items */
+.glossary-item {
+  @apply border-r border-b border-gray-600;
+}
+
+/* Add this to remove right border from last item in each row */
+.glossary-item:nth-child(8n) {
+  @apply border-r-0;
+}
+
+/* Add this to remove bottom border from items in the last row */
+.glossary-item:nth-last-child(-n+8) {
+  @apply border-b-0;
+}
+
+/* Remove these styles */
+/*
+.upgrade-tab-container {
+  display: flex;
+  flex-direction: column;
+  max-height: 30vh;
+  margin-top: auto;
+}
+
+.upgrade-tab-content {
+  overflow-y: auto;
+  max-height: calc(30vh - 40px);
+}
+*/
