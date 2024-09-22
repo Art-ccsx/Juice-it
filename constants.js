@@ -9,13 +9,10 @@ export const RARITY = {
   COMMON: { name: 'Common', color: '#FFFFFF' },
 };
 
-const TetrahedronSVG = (color) => `
-  <path d="M50 10 L90 80 L50 65 L10 80 Z" fill="${color}" stroke="#000" stroke-width="2" />
-`;
-
-export const ENRICHING_JUICE_DROP_CHANCE = 0.1;
-export const MODIFYING_PRISM_DROP_CHANCE = 0.1;
-export const SHINIES_DROP_CHANCE = 0.5;
+export const ENRICHING_JUICE_DROP_CHANCE = 0.05;
+export const MODIFYING_PRISM_DROP_CHANCE = 0.01;
+export const SHINIES_DROP_CHANCE = 0.1;
+export const BOX_DROP_CHANCE = 0.01; // Changed from previous value to 1%
 
 export const ITEMS = [
   { 
@@ -24,7 +21,7 @@ export const ITEMS = [
     rarity: RARITY.COMMON,
     isMapItem: false, 
     description: 'A mysterious liquid that can enhance the quality of maps.',
-    shape: `<path d="M50 10 Q80 40 80 70 Q80 90 50 90 Q20 90 20 70 Q20 40 50 10Z" fill="${RARITY.COMMON.color}" stroke="#000" stroke-width="2" />`,
+    image: '/assets/enriching_juice.png',
     stackable: true,
     maxStack: 999,
     dropChance: ENRICHING_JUICE_DROP_CHANCE,
@@ -34,13 +31,11 @@ export const ITEMS = [
     id: 'modifying_prism',
     name: 'Modifying Prism',
     description: 'Used to upgrade map rarity',
-    rarity: RARITY.UNCOMMON,
+    rarity: RARITY.UNCOMMON,  // This is correct
     isMapItem: false,
-    shape: `
-      <path d="M50 10 L90 80 L50 65 L10 80 Z" fill="${RARITY.UNCOMMON.color}" stroke="#000" stroke-width="2" />
-    `,
+    image: '/assets/modifying_prism.png',
     stackable: true,
-    maxStack: 10,
+    maxStack: 999,
     dropChance: MODIFYING_PRISM_DROP_CHANCE,
     usable: true,
   },
@@ -50,15 +45,22 @@ export const ITEMS = [
     rarity: RARITY.COMMON,
     isMapItem: false,
     description: 'Shiny objects that serve as currency.',
-    shape: `
-      <g>
-        <circle cx="50" cy="50" r="40" fill="#FFD700" stroke="#000" stroke-width="2" />
-        <path d="M30 50 L70 50 M50 30 L50 70" stroke="#FFA500" stroke-width="5" />
-      </g>
-    `,
+    image: '/assets/shinies.png',
     stackable: true,
     maxStack: 999,
     dropChance: SHINIES_DROP_CHANCE,
+  },
+  {
+    id: 'box',
+    name: 'Box',
+    rarity: RARITY.COMMON,
+    isMapItem: false,
+    description: 'A mysterious box. Its contents are unknown.',
+    image: '/assets/box.png',
+    stackable: false,
+    maxStack: 1,
+    dropChance: BOX_DROP_CHANCE,
+    usable: false,
   },
 ];
 
@@ -68,16 +70,11 @@ export const MAP_ITEM = {
   rarity: RARITY.COMMON,
   isMapItem: true, 
   description: 'A map that allows you to explore new areas and discover resources.',
-  shape: `
-    <g>
-      <rect x="10" y="10" width="80" height="80" fill="#1E40AF" stroke="#000" stroke-width="2" />
-      <path d="M20 20 L80 20 L80 80 L20 80 Z" fill="none" stroke="#60A5FA" stroke-width="3" />
-      <path d="M35 70 L45 50 L55 70" fill="#60A5FA" stroke="#60A5FA" stroke-width="2" />
-      <path d="M55 60 L65 40 L75 60" fill="#60A5FA" stroke="#60A5FA" stroke-width="2" />
-      <path d="M25 55 L35 35 L45 55" fill="#60A5FA" stroke="#60A5FA" stroke-width="2" />
-    </g>
-  `,
+  image: '/assets/map.png',
   stackable: false,
+  maxStack: 1,
   dropChance: 0, // Maps are not dropped, they are obtained through other means
   usable: false,
 };
+
+export const INITIAL_BOXES_INVENTORY_SIZE = 10;

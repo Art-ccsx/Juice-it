@@ -2,9 +2,9 @@
 /* @tailwind components; */
 /* @tailwind utilities; */
 
-@import 'tailwindcss/base';
-@import 'tailwindcss/components';
-@import 'tailwindcss/utilities';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* Global styles */
 * {
@@ -13,7 +13,19 @@
 }
 
 body {
-  @apply bg-game-bg text-game-text;
+  @apply bg-game-bg text-game-text text-sm;
+}
+
+h1 {
+  @apply text-3xl;
+}
+
+h2 {
+  @apply text-xl;
+}
+
+h3 {
+  @apply text-lg;
 }
 
 button {
@@ -54,32 +66,39 @@ button:disabled {
   @apply grid grid-cols-10 bg-gray-800 p-[0px] rounded-md;
 }
 
-/* Apply padding to all slots and increase size by 1.5 times */
+/* Update inventory slot sizes */
 .inventory-slot,
 .active-map-slot,
 .glossary-item {
-  @apply w-16 h-16 border border-gray-600 rounded-none overflow-hidden bg-gray-700 p-0;
+  @apply w-14 h-14 border border-gray-600 rounded-none overflow-hidden bg-gray-700 p-0;
 }
 
-/* Custom size for 1.5x larger slots */
+/* Add padding for images within borders */
+.inventory-slot > div,
+.active-map-slot > div,
+.glossary-item > div {
+  @apply p-1;
+}
+
+/* Remove the custom size for larger screens */
 @media (min-width: 640px) {
   .inventory-slot,
   .active-map-slot,
   .glossary-item {
-    width: 4rem;
-    height: 4rem;
+    width: 2.5rem;
+    height: 2.5rem;
   }
 }
 
 /* Remove gaps between glossary items */
 .glossary-grid {
   @apply flex flex-wrap;
-  gap: 0; /* Add this line to remove gaps */
+  gap: 0;
 }
 
 /* Add this new style for glossary items */
 .glossary-item {
-  @apply border-r border-b border-gray-600;
+  @apply w-14 h-14 overflow-hidden bg-gray-700 p-0;
 }
 
 /* Add this to remove right border from last item in each row */
@@ -106,3 +125,31 @@ button:disabled {
   max-height: calc(30vh - 40px);
 }
 */
+
+/* Add this to your existing styles */
+
+.inventory-slot {
+  @apply w-14 h-14 border border-gray-600 rounded-none overflow-hidden bg-gray-700 p-0;
+}
+
+/* Adjust the held item size */
+.held-item {
+  @apply w-10 h-10;
+}
+
+/* Adjust the crafting item size */
+.crafting-item {
+  @apply w-5 h-5;
+}
+
+/* Add animation for particles */
+@keyframes particle-fade {
+  0% {
+    opacity: 1;
+    transform: scale(1) translate(0, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.5) translate(var(--tw-translate-x), var(--tw-translate-y));
+  }
+}

@@ -17,11 +17,14 @@ const useGameState = () => {
     heldItem: null,
     craftingItem: null,
     tooltipMessage: null,
+    boxesUnlocked: false,
+    boxesInventory: Array(10).fill(null),
   });
 
   const [activeTab, setActiveTab] = useState('general');
+  const [leftActiveTab, setLeftActiveTab] = useState('???');
 
-  return { gameState, setGameState, activeTab, setActiveTab };
+  return { gameState, setGameState, activeTab, setActiveTab, leftActiveTab, setLeftActiveTab };
 };
 
 export default useGameState;

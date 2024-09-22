@@ -1,14 +1,31 @@
 import React, { useState } from 'react';
 import { ITEMS, MAP_ITEM } from '../constants';
+import Image from 'next/image';
 
 const GlossaryItem = ({ item, onMouseEnter, onMouseLeave, onMouseMove }) => (
   <div 
-    className="glossary-item"
+    className="glossary-item relative w-14 h-14 p-0 select-none"
     onMouseEnter={(e) => onMouseEnter(e, item)}
     onMouseLeave={onMouseLeave}
     onMouseMove={(e) => onMouseMove(e, item)}
   >
-    <svg width="100%" height="100%" viewBox="0 0 100 100" dangerouslySetInnerHTML={{ __html: item.shape }} />
+    <div 
+      className="w-full h-full"
+      style={{
+        borderWidth: '1px',
+        borderStyle: 'solid',
+        borderColor: item.rarity.color
+      }}
+    >
+      <div className="w-full h-full relative">
+        <Image
+          src={`/assets/${item.id}.png`}
+          alt={item.name}
+          layout="fill"
+          objectFit="contain"
+        />
+      </div>
+    </div>
   </div>
 );
 

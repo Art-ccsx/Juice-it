@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react';
-import { ITEMS, ENRICHING_JUICE_DROP_CHANCE, MODIFYING_PRISM_DROP_CHANCE, SHINIES_DROP_CHANCE } from '../constants';
+import { ITEMS, ENRICHING_JUICE_DROP_CHANCE, MODIFYING_PRISM_DROP_CHANCE, SHINIES_DROP_CHANCE, BOX_DROP_CHANCE } from '../constants';
 
 const useExploration = (gameState, setGameState) => {
   const startExploration = useCallback(() => {
@@ -25,6 +25,8 @@ const useExploration = (gameState, setGameState) => {
       discoveredItem = ITEMS.find(item => item.id === 'modifying_prism');
     } else if (rand < ENRICHING_JUICE_DROP_CHANCE + MODIFYING_PRISM_DROP_CHANCE + SHINIES_DROP_CHANCE) {
       discoveredItem = ITEMS.find(item => item.id === 'shinies');
+    } else if (gameState.boxesUnlocked && rand < ENRICHING_JUICE_DROP_CHANCE + MODIFYING_PRISM_DROP_CHANCE + SHINIES_DROP_CHANCE + BOX_DROP_CHANCE) {
+      discoveredItem = ITEMS.find(item => item.id === 'box');
     }
 
     if (discoveredItem) {
@@ -34,13 +36,15 @@ const useExploration = (gameState, setGameState) => {
 
         // Try to add to existing stack
         for (let i = 0; i < newPouch.length; i++) {
-          if (newPouch[i] && newPouch[i].id === discoveredItem.id && newPouch[i].count < discoveredItem.maxStack) {
-            newPouch[i] = {
-              ...newPouch[i],
-              count: newPouch[i].count + 1
-            };
-            itemAdded = true;
-            break;
+          if (newPouch[i] && newPouch[i].id === discoveredItem.id && newPouch[i].stackable) {
+            if (newPouch[i].count < discoveredItem.maxStack) {
+              newPouch[i] = {
+                ...newPouch[i],
+                count: newPouch[i].count + 1
+              };
+              itemAdded = true;
+              break;
+            }
           }
         }
 
@@ -53,14 +57,17 @@ const useExploration = (gameState, setGameState) => {
           }
         }
 
-        return {
-          ...prevState,
-          pouch: newPouch,
-          discoveredItems: new Set([...prevState.discoveredItems, discoveredItem.id])
-        };
+        if (itemAdded) {
+          return {
+            ...prevState,
+            pouch: newPouch,
+            discoveredItems: new Set([...prevState.discoveredItems, discoveredItem.id])
+          };
+        }
+        return prevState;
       });
     }
-  }, [setGameState]);
+  }, [setGameState, gameState.boxesUnlocked]);
 
   const completeExploration = useCallback(() => {
     setGameState((prevState) => ({

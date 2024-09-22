@@ -1,7 +1,8 @@
 import { useCallback } from 'react';
-import { ITEMS, MAP_ITEM, RARITY } from '../constants';
+import { ITEMS, MAP_ITEM, RARITY, INITIAL_INVENTORY_SIZE, INITIAL_POUCH_SIZE, INITIAL_BOXES_INVENTORY_SIZE } from '../constants';
 
 const useInventory = (gameState, setGameState) => {
+  // Helper functions
   const getItem = useCallback((index, state) => {
     if (typeof index === 'string') {
       if (index === 'activeSlot') return state.activeMap;
@@ -9,20 +10,28 @@ const useInventory = (gameState, setGameState) => {
         const pouchIndex = parseInt(index.split('_')[1]);
         return state.pouch[pouchIndex];
       }
+      if (index.startsWith('boxes_')) {
+        const boxesIndex = parseInt(index.split('_')[1]);
+        return state.boxesInventory[boxesIndex];
+      }
     }
     return state.inventory[index];
   }, []);
 
   const setItem = useCallback((state, index, item) => {
     if (typeof index === 'string') {
-      if (index === 'activeSlot') {
-        return { ...state, activeMap: item };
-      }
+      if (index === 'activeSlot') return { ...state, activeMap: item };
       if (index.startsWith('pouch_')) {
         const pouchIndex = parseInt(index.split('_')[1]);
         const newPouch = [...state.pouch];
         newPouch[pouchIndex] = item;
         return { ...state, pouch: newPouch };
+      }
+      if (index.startsWith('boxes_')) {
+        const boxesIndex = parseInt(index.split('_')[1]);
+        const newBoxesInventory = [...state.boxesInventory];
+        newBoxesInventory[boxesIndex] = item;
+        return { ...state, boxesInventory: newBoxesInventory };
       }
     }
     const newInventory = [...state.inventory];
@@ -44,211 +53,246 @@ const useInventory = (gameState, setGameState) => {
   }, []);
 
   const countItem = useCallback((inventory, itemId) => {
-    return inventory.reduce((sum, item) => {
-      return sum + (item && item.id === itemId ? item.count : 0);
-    }, 0);
+    return inventory.reduce((sum, item) => sum + (item && item.id === itemId ? item.count : 0), 0);
   }, []);
 
+  // Interaction handlers
   const handleCtrlClick = useCallback((state, index) => {
     const item = getItem(index, state);
     if (!item) return state;
 
+    let newState = {...state};
+
     if (typeof index === 'string') {
-      if (index.startsWith('pouch_')) {
-        const storageIndex = state.inventory.findIndex(slot => slot === null);
-        if (storageIndex !== -1) {
-          return setItem(setItem(state, index, null), storageIndex, item);
-        }
-      } else if (index === 'activeSlot') {
-        const storageIndex = state.inventory.findIndex(slot => slot === null);
-        if (storageIndex !== -1) {
-          return setItem(setItem(state, 'activeSlot', null), storageIndex, item);
+      if (index.startsWith('pouch_') || index === 'activeSlot') {
+        if (item.id === 'box' && state.boxesUnlocked) {
+          const boxesIndex = state.boxesInventory.findIndex(slot => slot === null);
+          if (boxesIndex !== -1) {
+            return setItem(setItem(state, index, null), `boxes_${boxesIndex}`, item);
+          }
+        } else {
+          // Try to add to existing stacks first
+          let remainingCount = item.count;
+          const newInventory = [...state.inventory];
+          
+          for (let i = 0; i < newInventory.length && remainingCount > 0; i++) {
+            if (newInventory[i] && newInventory[i].id === item.id && newInventory[i].stackable) {
+              const spaceInStack = newInventory[i].maxStack - newInventory[i].count;
+              const amountToAdd = Math.min(spaceInStack, remainingCount);
+              newInventory[i] = {
+                ...newInventory[i],
+                count: newInventory[i].count + amountToAdd
+              };
+              remainingCount -= amountToAdd;
+            }
+          }
+
+          // If there are still items remaining, find an empty slot
+          if (remainingCount > 0) {
+            const emptySlotIndex = newInventory.findIndex(slot => slot === null);
+            if (emptySlotIndex !== -1) {
+              newInventory[emptySlotIndex] = {...item, count: remainingCount};
+              remainingCount = 0;
+            }
+          }
+
+          // Update the state
+          newState = setItem(newState, 'inventory', newInventory);
+          if (remainingCount === 0) {
+            newState = setItem(newState, index, null);
+          } else {
+            newState = setItem(newState, index, {...item, count: remainingCount});
+          }
+          return newState;
         }
       }
-    } else if (typeof index === 'number') {
-      if (item.isMapItem) {
-        return setItem(setItem(state, index, null), 'activeSlot', item);
-      }
+    } else if (typeof index === 'number' && item.isMapItem && !state.exploring) {
+      return setItem(setItem(state, index, null), 'activeSlot', item);
     }
 
     return state;
   }, [getItem, setItem]);
 
-  const isCraftingApplicable = useCallback((craftingItem, targetItem) => {
-    // Check if the crafting item is a Modifying Prism and the target is a map
-    return craftingItem.id === 'modifying_prism' && targetItem.isMapItem;
-  }, []);
-
   const handleCraftingInteraction = useCallback((state, index) => {
     const material = state.craftingItem;
     const targetItem = getItem(index, state);
-    console.log('Crafting interaction:', { material, targetItem });
+    
     if (material && targetItem && isCraftingApplicable(material, targetItem)) {
-      console.log('Crafting is applicable');
-      const requiredAmount = 1; // Modifying Prism always requires 1
+      const requiredAmount = 1;
       const materialCount = countItem(state.inventory, material.id);
+      
       if (materialCount >= requiredAmount) {
-        console.log('Sufficient material for crafting');
-        
-        // Remove the used material from inventory
         const newInventory = removeItems(state.inventory, material.id, requiredAmount);
+        const upgradedMap = upgradeMap(targetItem);
         
-        // Implement map rarity upgrade logic
-        const rarityOrder = [RARITY.COMMON, RARITY.UNCOMMON, RARITY.RARE, RARITY.EPIC, RARITY.LEGENDARY];
-        const currentRarityIndex = rarityOrder.findIndex(r => r.name === targetItem.rarity.name);
-        const newRarity = rarityOrder[Math.min(currentRarityIndex + 1, rarityOrder.length - 1)];
-        
-        const upgradedMap = {
-          ...targetItem,
-          rarity: newRarity,
-          name: `${newRarity.name} ${targetItem.name.split(' ').slice(1).join(' ')}`,
-        };
-
-        let updatedState = {
-          ...state,
-          inventory: newInventory,
-          craftingItem: { ...material, sourceIndex: material.sourceIndex }, // Keep crafting mode on
-          tooltipMessage: `Upgraded map to ${newRarity.name} rarity!`,
-        };
-
-        if (typeof index === 'string') {
-          if (index.startsWith('pouch_')) {
-            updatedState.pouch = state.pouch.map((item, i) => i === parseInt(index.split('_')[1]) ? upgradedMap : item);
-          } else if (index === 'activeSlot') {
-            updatedState.activeMap = upgradedMap;
-          }
-        } else {
-          updatedState.inventory = updatedState.inventory.map((item, i) => i === index ? upgradedMap : item);
-        }
-
-        console.log('Crafting successful, updated state:', updatedState);
-        return updatedState;
+        return updateStateAfterCrafting(state, index, newInventory, upgradedMap, material);
       } else {
-        console.log('Insufficient material for crafting');
-        return {
-          ...state,
-          tooltipMessage: `You need 1 ${material.name}`,
-        };
+        return { ...state, tooltipMessage: `You need 1 ${material.name}` };
       }
     }
-    console.log('Crafting not applicable or failed');
-    return state;
-  }, [getItem, countItem, removeItems, isCraftingApplicable]);
-
-  const handleItemInteraction = useCallback((index, isCtrlClick = false, isRightClick = false, mouseEvent = 'click') => {
-    console.log(`Interaction: index=${index}, isCtrlClick=${isCtrlClick}, isRightClick=${isRightClick}, mouseEvent=${mouseEvent}`);
     
+    return state;
+  }, [getItem, countItem, removeItems]);
+
+  const handleRightClick = useCallback((state, index) => {
+    const clickedItem = getItem(index, state);
+    if (!clickedItem || !clickedItem.usable) return state;
+
+    if (clickedItem.id === 'modifying_prism') {
+      return { ...state, craftingItem: { ...clickedItem, sourceIndex: index } };
+    }
+
+    // Handle other usable items here
+
+    return state;
+  }, [getItem]);
+
+  const handleLeftClick = useCallback((state, index) => {
+    if (state.craftingItem) {
+      return handleCraftingInteraction(state, index);
+    }
+
+    const clickedItem = getItem(index, state);
+
+    if (!state.heldItem) {
+      if (clickedItem) {
+        return setItem({ ...state, heldItem: clickedItem }, index, null);
+      }
+    } else {
+      if (!clickedItem) {
+        return setItem({ ...state, heldItem: null }, index, state.heldItem);
+      } else if (clickedItem.id === state.heldItem.id && clickedItem.stackable) {
+        const itemDefinition = ITEMS.find(item => item.id === clickedItem.id);
+        const maxStack = itemDefinition ? itemDefinition.maxStack : clickedItem.maxStack;
+        const totalCount = clickedItem.count + state.heldItem.count;
+        if (totalCount <= maxStack) {
+          return setItem({ ...state, heldItem: null }, index, { ...clickedItem, count: totalCount });
+        } else {
+          return setItem(
+            { ...state, heldItem: { ...state.heldItem, count: totalCount - maxStack } },
+            index,
+            { ...clickedItem, count: maxStack }
+          );
+        }
+      } else {
+        return setItem({ ...state, heldItem: clickedItem }, index, state.heldItem);
+      }
+    }
+
+    return state;
+  }, [getItem, setItem, handleCraftingInteraction]);
+
+  const handleItemInteraction = useCallback((index, isCtrlClick, isRightClick, mouseEvent) => {
     setGameState(prevState => {
-      console.log('Current state:', prevState);
+      if (prevState.craftingItem && prevState.heldItem) return prevState;
 
-      // Mutual exclusivity check
-      if (prevState.craftingItem && prevState.heldItem) {
-        console.log('Mutual exclusivity: Both craftingItem and heldItem are present');
-        return prevState;
-      }
-
-      // Handle Ctrl+Click
       if (isCtrlClick) {
-        console.log('Handling Ctrl+Click');
-        if (prevState.craftingItem) {
-          console.log('Cancelling crafting mode and performing regular ctrl+click action');
-          return handleCtrlClick({ ...prevState, craftingItem: null }, index);
-        }
-        return handleCtrlClick(prevState, index);
+        return handleCtrlClick(prevState.craftingItem ? { ...prevState, craftingItem: null } : prevState, index);
       }
 
-      // Handle Right-Click
       if (isRightClick) {
-        console.log('Handling Right-Click');
-        if (prevState.heldItem) {
-          console.log('Item is held, doing nothing');
-          return prevState;
-        }
-        if (prevState.craftingItem) {
-          console.log('Cancelling crafting mode');
-          return { ...prevState, craftingItem: null };
-        } else {
-          const clickedItem = getItem(index, prevState);
-          console.log('Clicked item:', clickedItem);
-          if (clickedItem && clickedItem.id === 'modifying_prism') {
-            console.log('Entering crafting mode with Modifying Prism');
-            return {
-              ...prevState,
-              craftingItem: { ...clickedItem, sourceIndex: index },
-            };
-          }
-        }
-        console.log('Right-click did not result in any action');
-        return prevState;
+        return handleRightClick(prevState, index);
       }
 
-      // Handle Left-Click
       if (!isRightClick && mouseEvent === 'click') {
-        console.log('Handling Left-Click');
-        if (prevState.craftingItem) {
-          console.log('Attempting to craft');
-          return handleCraftingInteraction(prevState, index);
-        }
-
-        const clickedItem = getItem(index, prevState);
-        console.log('Clicked item:', clickedItem);
-
-        if (!prevState.heldItem) {
-          console.log('No item held, attempting to pick up clicked item');
-          if (clickedItem) {
-            console.log('Picking up item:', clickedItem);
-            return setItem({ ...prevState, heldItem: clickedItem }, index, null);
-          } else {
-            console.log('No item to pick up');
-          }
-        } else {
-          console.log('Item is held, attempting to place or swap');
-          if (!clickedItem) {
-            console.log('Placing held item in empty slot');
-            return setItem({ ...prevState, heldItem: null }, index, prevState.heldItem);
-          } else if (clickedItem.id === prevState.heldItem.id && clickedItem.stackable) {
-            console.log('Stacking items');
-            const totalCount = clickedItem.count + prevState.heldItem.count;
-            if (totalCount <= clickedItem.maxStack) {
-              console.log('Stacking all items');
-              return setItem({ ...prevState, heldItem: null }, index, { ...clickedItem, count: totalCount });
-            } else {
-              console.log('Partial stacking');
-              const remainingCount = totalCount - clickedItem.maxStack;
-              return setItem(
-                { 
-                  ...prevState, 
-                  heldItem: { ...prevState.heldItem, count: remainingCount } 
-                }, 
-                index, 
-                { ...clickedItem, count: clickedItem.maxStack }
-              );
-            }
-          } else {
-            console.log('Swapping items');
-            return setItem({ ...prevState, heldItem: clickedItem }, index, prevState.heldItem);
-          }
-        }
+        return handleLeftClick(prevState, index);
       }
 
-      console.log('No action taken, returning previous state');
       return prevState;
     });
-  }, [getItem, setItem, handleCtrlClick, handleCraftingInteraction]);
+  }, [handleCtrlClick, handleRightClick, handleLeftClick]);
+
+  // Utility functions
+  const isCraftingApplicable = useCallback((craftingItem, targetItem) => {
+    return craftingItem.id === 'modifying_prism' && targetItem.isMapItem;
+  }, []);
+
+  const upgradeMap = useCallback((targetItem) => {
+    const rarityOrder = [RARITY.COMMON, RARITY.UNCOMMON, RARITY.RARE, RARITY.EPIC, RARITY.LEGENDARY];
+    const currentRarityIndex = rarityOrder.findIndex(r => r.name === targetItem.rarity.name);
+    const newRarity = rarityOrder[Math.min(currentRarityIndex + 1, rarityOrder.length - 1)];
+    
+    return {
+      ...targetItem,
+      rarity: newRarity,
+      name: `${newRarity.name} ${targetItem.name.split(' ').slice(1).join(' ')}`,
+    };
+  }, []);
+
+  const updateStateAfterCrafting = useCallback((state, index, newInventory, upgradedMap, material) => {
+    let updatedState = {
+      ...state,
+      inventory: newInventory,
+      craftingItem: null,
+      tooltipMessage: `Upgraded map to ${upgradedMap.rarity.name} rarity!`,
+    };
+
+    if (typeof index === 'string') {
+      if (index.startsWith('pouch_')) {
+        updatedState.pouch = state.pouch.map((item, i) => i === parseInt(index.split('_')[1]) ? upgradedMap : item);
+      } else if (index === 'activeSlot') {
+        updatedState.activeMap = upgradedMap;
+      } else if (index.startsWith('boxes_')) {
+        updatedState.boxesInventory = state.boxesInventory.map((item, i) => i === parseInt(index.split('_')[1]) ? upgradedMap : item);
+      }
+    } else {
+      updatedState.inventory = updatedState.inventory.map((item, i) => i === index ? upgradedMap : item);
+    }
+
+    return updatedState;
+  }, []);
+
+  // Additional inventory management functions
+  const getInventoryUpgradeCost = useCallback((currentUpgrades) => {
+    return Math.floor(1 * Math.pow(4, currentUpgrades));
+  }, []);
 
   const addInventorySlot = useCallback(() => {
-    setGameState(prevState => ({
-      ...prevState,
-      inventory: [...prevState.inventory, null],
-    }));
-  }, []);
+    setGameState(prevState => {
+      const upgradeCost = getInventoryUpgradeCost(prevState.inventoryUpgrades);
+      const shiniesCount = prevState.inventory.reduce((sum, item) => sum + (item && item.id === 'shinies' ? item.count : 0), 0);
+
+      if (shiniesCount >= upgradeCost) {
+        const newInventory = prevState.inventory.map(item => {
+          if (item && item.id === 'shinies') {
+            return { ...item, count: item.count - upgradeCost };
+          }
+          return item;
+        });
+
+        return {
+          ...prevState,
+          inventory: [...newInventory, null],
+          inventoryUpgrades: prevState.inventoryUpgrades + 1,
+        };
+      }
+      return prevState;
+    });
+  }, [getInventoryUpgradeCost]);
 
   const addPouchSlot = useCallback(() => {
-    setGameState(prevState => ({
-      ...prevState,
-      pouch: [...prevState.pouch, null],
-    }));
-  }, []);
+    setGameState(prevState => {
+      const upgradeCost = getInventoryUpgradeCost(prevState.pouchUpgrades);
+      const shiniesCount = prevState.inventory.reduce((sum, item) => sum + (item && item.id === 'shinies' ? item.count : 0), 0);
+
+      if (shiniesCount >= upgradeCost) {
+        const newInventory = prevState.inventory.map(item => {
+          if (item && item.id === 'shinies') {
+            return { ...item, count: item.count - upgradeCost };
+          }
+          return item;
+        });
+
+        return {
+          ...prevState,
+          inventory: newInventory,
+          pouch: [...prevState.pouch, null],
+          pouchUpgrades: prevState.pouchUpgrades + 1,
+        };
+      }
+      return prevState;
+    });
+  }, [getInventoryUpgradeCost]);
 
   const getMap = useCallback(() => {
     setGameState(prevState => {
@@ -262,12 +306,12 @@ const useInventory = (gameState, setGameState) => {
           discoveredItems: new Set([...prevState.discoveredItems, MAP_ITEM.id])
         };
       }
-      return prevState;
+      // If there's no empty slot, show a tooltip message
+      return {
+        ...prevState,
+        tooltipMessage: "No empty slots in inventory for a new map!"
+      };
     });
-  }, []);
-
-  const getInventoryUpgradeCost = useCallback((currentUpgrades) => {
-    return Math.floor(1 * Math.pow(4, currentUpgrades));
   }, []);
 
   const clearStorage = useCallback(() => {
@@ -279,62 +323,66 @@ const useInventory = (gameState, setGameState) => {
 
   const sortStorage = useCallback(() => {
     setGameState(prevState => {
-      console.log('Starting storage sorting');
-      
+      console.log('Sorting storage...');
       const rarityOrder = [RARITY.LEGENDARY, RARITY.EPIC, RARITY.RARE, RARITY.UNCOMMON, RARITY.COMMON];
-      
       const sortedItems = prevState.inventory
         .filter(item => item !== null)
         .sort((a, b) => {
-          console.log(`Comparing items: ${a.name} (${a.rarity.name}) and ${b.name} (${b.rarity.name})`);
-          
-          // First, sort by rarity
+          console.log(`Comparing items: ${a.name} (max stack: ${a.maxStack}) and ${b.name} (max stack: ${b.maxStack})`);
           const rarityDiffA = rarityOrder.findIndex(r => r.name === a.rarity.name);
           const rarityDiffB = rarityOrder.findIndex(r => r.name === b.rarity.name);
-          if (rarityDiffA !== rarityDiffB) {
-            console.log(`Sorted by rarity: ${rarityDiffA < rarityDiffB ? a.name : b.name} comes first`);
-            return rarityDiffA - rarityDiffB;
-          }
-          
-          // If rarity is the same, sort by name
-          const nameDiff = a.name.localeCompare(b.name);
-          console.log(`Sorted by name: ${nameDiff < 0 ? a.name : b.name} comes first`);
-          return nameDiff;
+          if (rarityDiffA !== rarityDiffB) return rarityDiffA - rarityDiffB;
+          return a.name.localeCompare(b.name);
         });
 
-      console.log('Sorted items:', sortedItems.map(item => `${item.name} (${item.rarity.name})`));
+      console.log('Sorted items:', sortedItems.map(item => `${item.name} (count: ${item.count}, max stack: ${item.maxStack})`));
 
       const newInventory = [
         ...sortedItems,
         ...Array(prevState.inventory.length - sortedItems.length).fill(null)
       ];
 
-      console.log('New inventory:', newInventory.map(item => item ? `${item.name} (${item.rarity.name})` : 'empty'));
-
       return { ...prevState, inventory: newInventory };
     });
   }, []);
 
   const takeAllFromPouch = useCallback(() => {
+    console.log('takeAllFromPouch function called');
     setGameState(prevState => {
-      console.log('Taking all items from pouch');
+      console.log('Current state:', JSON.stringify(prevState, null, 2));
       let newInventory = [...prevState.inventory];
       let newPouch = [...prevState.pouch];
+      let newBoxesInventory = [...prevState.boxesInventory];
+      let itemsMoved = false;
 
       newPouch.forEach((pouchItem, pouchIndex) => {
         if (pouchItem) {
-          console.log(`Processing pouch item: ${pouchItem.name}, count: ${pouchItem.count}`);
+          console.log(`Processing pouch item at index ${pouchIndex}:`, pouchItem);
           let remainingCount = pouchItem.count;
+          console.log(`Initial remaining count: ${remainingCount}`);
 
-          // First, try to add to existing stacks
-          for (let i = 0; i < newInventory.length; i++) {
+          if (pouchItem.id === 'box' && prevState.boxesUnlocked) {
+            const boxesIndex = newBoxesInventory.findIndex(slot => slot === null);
+            if (boxesIndex !== -1) {
+              console.log(`Moving box to boxes inventory at index ${boxesIndex}`);
+              newBoxesInventory[boxesIndex] = { ...pouchItem, count: 1 };
+              remainingCount--;
+              itemsMoved = true;
+            }
+          }
+
+          // Try to add to existing stacks
+          for (let i = 0; i < newInventory.length && remainingCount > 0; i++) {
             if (newInventory[i] && newInventory[i].id === pouchItem.id && newInventory[i].stackable) {
               const spaceInStack = newInventory[i].maxStack - newInventory[i].count;
               const amountToAdd = Math.min(spaceInStack, remainingCount);
-              newInventory[i].count += amountToAdd;
+              console.log(`Adding ${amountToAdd} to existing stack at index ${i}`);
+              newInventory[i] = {
+                ...newInventory[i],
+                count: newInventory[i].count + amountToAdd
+              };
               remainingCount -= amountToAdd;
-              console.log(`Added ${amountToAdd} to existing stack in inventory slot ${i}`);
-              if (remainingCount === 0) break;
+              itemsMoved = true;
             }
           }
 
@@ -346,27 +394,56 @@ const useInventory = (gameState, setGameState) => {
               break;
             }
             const amountToAdd = Math.min(remainingCount, pouchItem.maxStack);
+            console.log(`Adding ${amountToAdd} to new stack at index ${emptySlot}`);
             newInventory[emptySlot] = { ...pouchItem, count: amountToAdd };
             remainingCount -= amountToAdd;
-            console.log(`Added ${amountToAdd} to new stack in inventory slot ${emptySlot}`);
+            itemsMoved = true;
           }
 
           if (remainingCount === 0) {
+            console.log(`Removing item from pouch at index ${pouchIndex}`);
             newPouch[pouchIndex] = null;
-            console.log(`Removed item from pouch slot ${pouchIndex}`);
           } else {
+            console.log(`Updating pouch item count at index ${pouchIndex} to ${remainingCount}`);
             newPouch[pouchIndex] = { ...pouchItem, count: remainingCount };
-            console.log(`Updated pouch slot ${pouchIndex} with remaining count: ${remainingCount}`);
           }
         }
       });
 
-      console.log('Finished taking all items from pouch');
-      return {
-        ...prevState,
-        inventory: newInventory,
-        pouch: newPouch,
-      };
+      console.log('Items moved:', itemsMoved);
+      console.log('New inventory:', newInventory);
+      console.log('New pouch:', newPouch);
+      console.log('New boxes inventory:', newBoxesInventory);
+
+      return itemsMoved ? { ...prevState, inventory: newInventory, pouch: newPouch, boxesInventory: newBoxesInventory } : prevState;
+    });
+  }, [setGameState]);
+
+  const unlockBoxes = useCallback(() => {
+    console.log('unlockBoxes function called');
+    setGameState(prevState => {
+      console.log('Current state:', prevState);
+      const shiniesCount = prevState.inventory.reduce((sum, item) => 
+        sum + (item && item.id === 'shinies' ? item.count : 0), 0);
+      console.log('Current shinies count:', shiniesCount);
+      
+      if (shiniesCount >= 10 && !prevState.boxesUnlocked) {
+        console.log('Unlocking boxes');
+        const newInventory = prevState.inventory.map(item => {
+          if (item && item.id === 'shinies') {
+            return { ...item, count: item.count - 10 };
+          }
+          return item;
+        }).filter(item => item === null || item.count > 0);
+
+        return {
+          ...prevState,
+          boxesUnlocked: true,
+          inventory: newInventory,
+        };
+      }
+      console.log('Cannot unlock boxes: insufficient shinies or already unlocked');
+      return prevState;
     });
   }, []);
 
@@ -379,6 +456,7 @@ const useInventory = (gameState, setGameState) => {
     clearStorage,
     sortStorage,
     takeAllFromPouch,
+    unlockBoxes,
   };
 };
 

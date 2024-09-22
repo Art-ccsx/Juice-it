@@ -1,12 +1,40 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import Image from 'next/image';
 import Glossary from './Glossary';
 import Settings from './Settings';
 import { INITIAL_INVENTORY_SIZE, INITIAL_POUCH_SIZE, ITEMS } from '../constants';
 
-const UpgradeTab = ({ inventorySlots, pouchSlots, addInventorySlot, addPouchSlot, onMouseEnter, onMouseLeave, onMouseMove, getInventoryUpgradeCost, shiniesCount }) => {
-  const inventoryUpgradeCost = getInventoryUpgradeCost(inventorySlots - INITIAL_INVENTORY_SIZE);
-  const pouchUpgradeCost = getInventoryUpgradeCost(pouchSlots - INITIAL_POUCH_SIZE);
-  const shiniesItem = ITEMS.find(item => item.id === 'shinies');
+const CostDisplay = React.memo(({ cost, item, onMouseEnter, onMouseLeave, onMouseMove }) => (
+  <div 
+    className="flex items-center"
+    onMouseEnter={(e) => onMouseEnter(e, item)}
+    onMouseLeave={onMouseLeave}
+    onMouseMove={(e) => onMouseMove(e, item)}
+  >
+    <span className="mr-1">Cost:</span>
+    <span className="font-bold mr-1">{cost}</span>
+    <div className="w-4 h-4 relative">
+      <Image
+        src={`/assets/${item.id}.png`}
+        alt={item.name}
+        layout="fill"
+        objectFit="contain"
+      />
+    </div>
+  </div>
+));
+
+const UpgradeTab = React.memo(({ inventorySlots, pouchSlots, addInventorySlot, addPouchSlot, onMouseEnter, onMouseLeave, onMouseMove, getInventoryUpgradeCost, shiniesCount, unlockBoxes, boxesUnlocked }) => {
+  const inventoryUpgradeCost = useMemo(() => getInventoryUpgradeCost(inventorySlots - INITIAL_INVENTORY_SIZE), [getInventoryUpgradeCost, inventorySlots]);
+  const pouchUpgradeCost = useMemo(() => getInventoryUpgradeCost(pouchSlots - INITIAL_POUCH_SIZE), [getInventoryUpgradeCost, pouchSlots]);
+  const shiniesItem = useMemo(() => ITEMS.find(item => item.id === 'shinies'), []);
+
+  const handleUnlockBoxes = () => {
+    console.log('Attempting to unlock boxes');
+    console.log('Current shinies count:', shiniesCount);
+    console.log('Boxes already unlocked:', boxesUnlocked);
+    unlockBoxes();
+  };
 
   return (
     <div>
@@ -21,18 +49,7 @@ const UpgradeTab = ({ inventorySlots, pouchSlots, addInventorySlot, addPouchSlot
           >
             Add Storage Slot
           </button>
-          <div 
-            className="flex items-center"
-            onMouseEnter={(e) => onMouseEnter(e, shiniesItem)}
-            onMouseLeave={onMouseLeave}
-            onMouseMove={(e) => onMouseMove(e, shiniesItem)}
-          >
-            <span className="mr-1">Cost:</span>
-            <span className="font-bold mr-1">{inventoryUpgradeCost}</span>
-            <div className="w-4 h-4 inline-block">
-              <svg width="100%" height="100%" viewBox="0 0 100 100" dangerouslySetInnerHTML={{ __html: shiniesItem.shape }} />
-            </div>
-          </div>
+          <CostDisplay cost={inventoryUpgradeCost} item={shiniesItem} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} onMouseMove={onMouseMove} />
         </div>
       </div>
       <div className="flex items-center justify-between mb-2">
@@ -45,23 +62,36 @@ const UpgradeTab = ({ inventorySlots, pouchSlots, addInventorySlot, addPouchSlot
           >
             Add Pouch Slot
           </button>
-          <div 
-            className="flex items-center"
-            onMouseEnter={(e) => onMouseEnter(e, shiniesItem)}
-            onMouseLeave={onMouseLeave}
-            onMouseMove={(e) => onMouseMove(e, shiniesItem)}
-          >
-            <span className="mr-1">Cost:</span>
-            <span className="font-bold mr-1">{pouchUpgradeCost}</span>
-            <div className="w-4 h-4 inline-block">
-              <svg width="100%" height="100%" viewBox="0 0 100 100" dangerouslySetInnerHTML={{ __html: shiniesItem.shape }} />
-            </div>
-          </div>
+          <CostDisplay cost={pouchUpgradeCost} item={shiniesItem} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} onMouseMove={onMouseMove} />
+        </div>
+      </div>
+      <div className="flex items-center justify-between mb-2">
+        <span>Unlock Boxes</span>
+        <div className="flex items-center">
+          {boxesUnlocked ? (
+            <button
+              className="bg-green-500 text-white font-bold py-1 px-2 rounded text-sm mr-2 cursor-default"
+              disabled
+            >
+              ✓ Unlocked
+            </button>
+          ) : (
+            <button
+              className="bg-game-button hover:bg-game-button-hover text-white font-bold py-1 px-2 rounded text-sm mr-2"
+              onClick={handleUnlockBoxes}
+              disabled={shiniesCount < 10}
+            >
+              Unlock Boxes
+            </button>
+          )}
+          {!boxesUnlocked && (
+            <CostDisplay cost={10} item={shiniesItem} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} onMouseMove={onMouseMove} />
+          )}
         </div>
       </div>
       <div>Available Shinies: {shiniesCount}</div>
     </div>
   );
-};
+});
 
 export default UpgradeTab;

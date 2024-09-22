@@ -5,7 +5,7 @@ const Storage = ({ inventory, handleItemInteraction, onMouseEnter, onMouseLeave,
   return (
     <div>
       <div className="flex justify-between items-center mb-2">
-        <h2 className="text-2xl font-bold">Storage</h2>
+        <h2 className="text-xl font-bold">Storage</h2>
         <div>
           <button
             className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded text-sm mr-2"

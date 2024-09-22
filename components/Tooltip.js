@@ -8,7 +8,12 @@ const Tooltip = ({ item, position }) => {
   return (
     <div 
       className="fixed z-10 bg-gray-800 text-white p-2 rounded shadow-lg"
-      style={{ top: position.y, left: position.x }}
+      style={{ 
+        top: position.y, 
+        left: position.x,
+        maxWidth: '200px',
+        width: '100%'
+      }}
     >
       <p className="font-bold" style={{ color: item.rarity.color }}>{item.name}</p>
       <p className="text-xs italic" style={{ color: item.rarity.color }}>{item.rarity.name}</p>
