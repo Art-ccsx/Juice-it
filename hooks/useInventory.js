@@ -88,51 +88,63 @@ const useInventory = (gameState, setGameState) => {
 
     if (typeof index === 'string') {
       if (index.startsWith('pouch_') || index === 'activeSlot') {
-        if (item.id === 'box' && state.boxesUnlocked) {
-          const boxesIndex = state.boxesInventory.findIndex(slot => slot === null);
-          if (boxesIndex !== -1) {
-            return setItem(setItem(state, index, null), `boxes_${boxesIndex}`, item);
+        // Move item from pouch or active slot to inventory
+        let remainingCount = item.count || 1;
+        let newInventory = [...newState.inventory];
+
+        // First, try to add to existing stacks
+        for (let i = 0; i < newInventory.length && remainingCount > 0; i++) {
+          if (newInventory[i] && newInventory[i].id === item.id && newInventory[i].stackable) {
+            const spaceInStack = newInventory[i].maxStack - newInventory[i].count;
+            const amountToAdd = Math.min(spaceInStack, remainingCount);
+            newInventory[i] = {
+              ...newInventory[i],
+              count: newInventory[i].count + amountToAdd
+            };
+            remainingCount -= amountToAdd;
           }
+        }
+
+        // If there are still items remaining, find an empty slot
+        if (remainingCount > 0) {
+          const emptySlot = newInventory.findIndex(slot => slot === null);
+          if (emptySlot !== -1) {
+            newInventory[emptySlot] = { ...item, count: remainingCount };
+            remainingCount = 0;
+          }
+        }
+
+        // Update the inventory and remove the item from the source if all were moved
+        newState = { ...newState, inventory: newInventory };
+        if (remainingCount === 0) {
+          newState = removeItem(newState, index);
         } else {
-          // Try to add to existing stacks first
-          let remainingCount = item.count;
-          const newInventory = [...state.inventory];
-          
-          for (let i = 0; i < newInventory.length && remainingCount > 0; i++) {
-            if (newInventory[i] && newInventory[i].id === item.id && newInventory[i].stackable) {
-              const spaceInStack = newInventory[i].maxStack - newInventory[i].count;
-              const amountToAdd = Math.min(spaceInStack, remainingCount);
-              newInventory[i] = {
-                ...newInventory[i],
-                count: newInventory[i].count + amountToAdd
-              };
-              remainingCount -= amountToAdd;
-            }
-          }
-
-          // If there are still items remaining, find an empty slot
-          if (remainingCount > 0) {
-            const emptySlotIndex = newInventory.findIndex(slot => slot === null);
-            if (emptySlotIndex !== -1) {
-              newInventory[emptySlotIndex] = {...item, count: remainingCount};
-              remainingCount = 0;
-            }
-          }
-
-          // Update the state
-          newState = setItem(newState, 'inventory', newInventory);
-          if (remainingCount === 0) {
-            newState = setItem(newState, index, null);
-          } else {
-            newState = setItem(newState, index, {...item, count: remainingCount});
-          }
+          // If not all items were moved, update the count in the source
+          newState = setItem(newState, index, { ...item, count: remainingCount });
+        }
+        return newState;
+      } else if (index.startsWith('boxes_')) {
+        // Handle boxes inventory if needed
+        // ... (existing code for boxes)
+      }
+    } else {
+      // Move item from inventory to active slot or pouch
+      if (item.isMapItem && newState.activeMap === null) {
+        newState = setItem(newState, 'activeSlot', item);
+        newState = removeItem(newState, index);
+        return newState;
+      } else {
+        const emptyPouchSlot = newState.pouch.findIndex(slot => slot === null);
+        if (emptyPouchSlot !== -1) {
+          newState = setItem(newState, `pouch_${emptyPouchSlot}`, item);
+          newState = removeItem(newState, index);
           return newState;
         }
       }
     }
 
     return state;
-  }, [getItem, setItem]);
+  }, [getItem, setItem, removeItem]);
 
   const upgradeMap = useCallback((targetItem) => {
     const rarityOrder = [RARITY.COMMON, RARITY.UNCOMMON, RARITY.RARE, RARITY.EPIC, RARITY.LEGENDARY];
@@ -208,10 +220,12 @@ const useInventory = (gameState, setGameState) => {
 
   const handleRightClick = useCallback((state, index) => {
     const clickedItem = getItem(index, state);
+    console.log('Right-click on item:', clickedItem);
     if (!clickedItem || !clickedItem.usable) return state;
 
     if (clickedItem.id === 'modifying_prism') {
       const source = typeof index === 'string' && index.startsWith('pouch_') ? 'pouch' : 'inventory';
+      console.log('Setting crafting item:', { ...clickedItem, sourceIndex: index, source });
       return { ...state, craftingItem: { ...clickedItem, sourceIndex: index, source } };
     }
 
@@ -256,33 +270,28 @@ const useInventory = (gameState, setGameState) => {
   }, [getItem, setItem, handleCraftingInteraction]);
 
   const handleItemInteraction = useCallback((index, isCtrlClick, isRightClick, mouseEvent) => {
+    console.log('handleItemInteraction:', { index, isCtrlClick, isRightClick, mouseEvent, craftingItem: gameState.craftingItem });
     setGameState(prevState => {
       if (prevState.craftingItem && prevState.heldItem) return prevState;
 
+      let newState = { ...prevState };
+
       if (isCtrlClick) {
-        const clickedItem = getItem(index, prevState);
-        if (clickedItem && clickedItem.isMapItem) {
-          if (prevState.activeMap === null) {
-            return setItem(removeItem(prevState, index), 'activeSlot', clickedItem);
-          } else {
-            const activeMap = prevState.activeMap;
-            return setItem(setItem(prevState, 'activeSlot', clickedItem), index, activeMap);
-          }
-        }
-        return handleCtrlClick(prevState.craftingItem ? { ...prevState, craftingItem: null } : prevState, index);
+        newState = handleCtrlClick(newState, index);
+      } else if (isRightClick) {
+        newState = handleRightClick(newState, index);
+      } else if (!isRightClick && mouseEvent === 'click') {
+        newState = handleLeftClick(newState, index);
       }
 
-      if (isRightClick) {
-        return handleRightClick(prevState, index);
-      }
+      console.log('New state after interaction:', { 
+        craftingItem: newState.craftingItem, 
+        heldItem: newState.heldItem 
+      });
 
-      if (!isRightClick && mouseEvent === 'click') {
-        return handleLeftClick(prevState, index);
-      }
-
-      return prevState;
+      return newState;
     });
-  }, [handleCtrlClick, handleRightClick, handleLeftClick, getItem, setItem, removeItem]);
+  }, [handleCtrlClick, handleRightClick, handleLeftClick]);
 
   // Utility functions
   const getInventoryUpgradeCost = useCallback((currentUpgrades) => {

@@ -288,17 +288,19 @@ const IncrementalGame = () => {
   }, [gameState.boxesUnlocked, leftActiveTab, setLeftActiveTab]);
 
   const cursorStyle = useMemo(() => {
-    if (gameState.craftingItem) {
-      return { cursor: 'none' };
-    }
-    return {};
+    console.log('Cursor style update:', gameState.craftingItem ? 'crafting-active' : '');
+    return gameState.craftingItem ? 'crafting-active' : '';
+  }, [gameState.craftingItem]);
+
+  useEffect(() => {
+    console.log('Crafting item changed:', gameState.craftingItem);
   }, [gameState.craftingItem]);
 
   return (
     <DndProvider backend={HTML5Backend}>
       <div 
-        className="flex flex-col h-screen bg-game-bg text-game-text p-[3vh]"
-        style={cursorStyle}
+        className={`flex flex-col h-screen bg-game-bg text-game-text p-[3vh] ${gameState.craftingItem ? 'crafting-active' : ''}`}
+        onMouseMove={handleMouseMove}
       >
         {/* Top half */}
         <div className="flex-1 overflow-y-auto p-3">

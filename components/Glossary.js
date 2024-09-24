@@ -4,27 +4,22 @@ import Image from 'next/image';
 
 const GlossaryItem = ({ item, onMouseEnter, onMouseLeave, onMouseMove }) => (
   <div 
-    className="glossary-item relative w-14 h-14 p-0 select-none"
+    className="glossary-item relative select-none border border-gray-600"
     onMouseEnter={(e) => onMouseEnter(e, item)}
     onMouseLeave={onMouseLeave}
     onMouseMove={(e) => onMouseMove(e, item)}
+    style={{
+      borderColor: item.rarity.color,
+    }}
   >
-    <div 
-      className="w-full h-full"
-      style={{
-        borderWidth: '1px',
-        borderStyle: 'solid',
-        borderColor: item.rarity.color
-      }}
-    >
-      <div className="w-full h-full relative">
-        <Image
-          src={`/assets/${item.id}.png`}
-          alt={item.name}
-          layout="fill"
-          objectFit="contain"
-        />
-      </div>
+    <div className="inventory-slot-content">
+      <Image
+        src={`/assets/${item.id}.png`}
+        alt={item.name}
+        layout="fill"
+        objectFit="contain"
+        className="inventory-slot-image"
+      />
     </div>
   </div>
 );

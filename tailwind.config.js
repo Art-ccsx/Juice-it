@@ -7,10 +7,10 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        'game-bg': '#1a202c',
-        'game-text': '#e2e8f0',
-        'game-button': '#4299e1',
-        'game-button-hover': '#3182ce',
+        'game-bg': 'var(--color-game-bg)',
+        'game-text': 'var(--color-game-text)',
+        'game-button': 'var(--color-game-button)',
+        'game-button-hover': 'var(--color-game-button-hover)',
       },
     },
   },

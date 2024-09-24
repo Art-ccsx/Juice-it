@@ -14,7 +14,7 @@ const ActiveMap = ({ activeMap, handleItemInteraction, onMouseEnter, onMouseLeav
           onMouseEnter={onMouseEnter}
           onMouseLeave={onMouseLeave}
           onMouseMove={onMouseMove}
-          className={`inventory-slot active-map-slot`}
+          className="inventory-slot active-map-slot"
           isActiveMap={true}
           isExploring={isExploring}
         />

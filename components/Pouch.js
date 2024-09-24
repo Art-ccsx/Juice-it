@@ -40,7 +40,7 @@ const Pouch = ({ inventory, handleItemInteraction, onMouseEnter, onMouseLeave, o
   return (
     <div>
       <h2 className="text-xl font-bold mb-2">Pouch</h2>
-      <div className="flex flex-wrap">
+      <div className="flex flex-wrap mb-2">
         {inventory.map((item, index) => (
           <div key={index} className="relative">
             <InventorySlot

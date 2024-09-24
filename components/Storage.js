@@ -9,10 +9,7 @@ const Storage = ({ inventory, handleItemInteraction, onMouseEnter, onMouseLeave,
         <div>
           <button
             className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded text-sm mr-2"
-            onClick={() => {
-              console.log('Sort Storage button clicked');
-              sortStorage();
-            }}
+            onClick={sortStorage}
           >
             Sort Storage
           </button>

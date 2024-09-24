@@ -6,27 +6,21 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  * {
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
+:root {
+  --color-game-bg: #1a202c;
+  --color-game-text: #e2e8f0;
+  --color-game-button: #4299e1;
+  --color-game-button-hover: #3182ce;
+}
 
+@layer base {
   body {
     @apply bg-game-bg text-game-text text-sm;
   }
 
-  h1 {
-    @apply text-3xl;
-  }
-
-  h2 {
-    @apply text-xl;
-  }
-
-  h3 {
-    @apply text-lg;
-  }
+  h1 { @apply text-3xl font-bold; }
+  h2 { @apply text-xl font-bold; }
+  h3 { @apply text-lg font-bold; }
 
   button {
     @apply transition-colors duration-200;
@@ -41,172 +35,51 @@
   .inventory-slot,
   .active-map-slot,
   .glossary-item {
-    @apply w-14 h-14 border border-gray-600 rounded-none overflow-hidden bg-gray-700 p-0.5;
+    @apply w-14 h-14 border border-gray-600 rounded-none overflow-hidden bg-gray-700 p-[4px];
   }
 
-  .inventory-slot > div,
-  .active-map-slot > div,
-  .glossary-item > div {
-    @apply w-full h-full relative ;
+  .inventory-slot-content {
+    @apply w-full h-full relative select-none;
   }
 
-  .inventory-slot img,
-  .active-map-slot img,
-  .glossary-item img {
+  .inventory-slot-image {
     @apply object-contain;
   }
 
-  .held-item {
-    @apply w-10 h-10;
-  }
-
-  .held-item img {
-    @apply w-full h-full object-contain;
-  }
-
   .item-count {
-    @apply absolute bottom-0 right-0 text-white text-xs font-bold pr-1 pb-1 select-none pointer-events-none;
+    @apply absolute bottom-0 right-0 text-white text-xs font-bold pr-0.5 pb-0.5 select-none pointer-events-none;
     text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
   }
-}
 
-/* Global styles */
-* {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+  .game-button {
+    @apply bg-game-button hover:bg-game-button-hover text-white font-bold py-2 px-4 rounded;
+  }
 
-body {
-  @apply bg-game-bg text-game-text text-sm;
-}
-
-h1 {
-  @apply text-3xl;
-}
-
-h2 {
-  @apply text-xl;
-}
-
-h3 {
-  @apply text-lg;
-}
-
-button {
-  @apply transition-colors duration-200;
-}
-
-button:disabled {
-  @apply opacity-50 cursor-not-allowed;
-}
-
-/* Keep the active slot style */
-.active-slot {
-  @apply border-2 border-blue-500;
-}
-
-/* Customize scrollbar for webkit browsers */
-.overflow-y-auto::-webkit-scrollbar {
-  width: 8px;
-}
-
-.overflow-y-auto::-webkit-scrollbar-track {
-  background: #2D3748;
-}
-
-.overflow-y-auto::-webkit-scrollbar-thumb {
-  background-color: #4A5568;
-  border-radius: 4px;
-}
-
-/* For Firefox */
-.overflow-y-auto {
-  scrollbar-width: thin;
-  scrollbar-color: #4A5568 #2D3748;
-}
-
-/* Remove gaps between inventory slots */
-.inventory-grid {
-  @apply grid grid-cols-10 bg-gray-800 p-0 rounded-md;
-}
-
-/* Update inventory slot sizes and padding */
-.inventory-slot,
-.active-map-slot,
-.glossary-item {
-  @apply w-14 h-14 border border-gray-600 rounded-none overflow-hidden bg-gray-700 p-1;
-}
-
-/* Remove the padding for images within borders as it's now handled by the slot itself */
-.inventory-slot > div,
-.active-map-slot > div,
-.glossary-item > div {
-  @apply p-0.5;
-}
-
-/* Remove the custom size for larger screens */
-@media (min-width: 640px) {
-  .inventory-slot,
-  .active-map-slot,
-  .glossary-item {
-    width: 2.5rem;
-    height: 2.5rem;
+  .glossary-grid {
+    @apply flex flex-wrap;
   }
 }
 
-/* Remove gaps between glossary items */
-.glossary-grid {
-  @apply flex flex-wrap;
-  gap: 0;
+@layer utilities {
+  .scrollbar-game {
+    scrollbar-width: thin;
+    scrollbar-color: #4A5568 #2D3748;
+  }
+
+  .scrollbar-game::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .scrollbar-game::-webkit-scrollbar-track {
+    background: #2D3748;
+  }
+
+  .scrollbar-game::-webkit-scrollbar-thumb {
+    background-color: #4A5568;
+    border-radius: 4px;
+  }
 }
 
-/* Add this new style for glossary items */
-.glossary-item {
-  @apply w-14 h-14 overflow-hidden bg-gray-700 p-0;
-}
-
-/* Add this to remove right border from last item in each row */
-.glossary-item:nth-child(8n) {
-  @apply border-r-0;
-}
-
-/* Add this to remove bottom border from items in the last row */
-.glossary-item:nth-last-child(-n+8) {
-  @apply border-b-0;
-}
-
-/* Remove these styles */
-/*
-.upgrade-tab-container {
-  display: flex;
-  flex-direction: column;
-  max-height: 30vh;
-  margin-top: auto;
-}
-
-.upgrade-tab-content {
-  overflow-y: auto;
-  max-height: calc(30vh - 40px);
-}
-*/
-
-/* Add this to your existing styles */
-
-.inventory-slot {
-  @apply w-14 h-14 border border-gray-600 rounded-none overflow-hidden bg-gray-700 p-0;
-}
-
-/* Adjust the held item size */
-.held-item {
-  @apply w-10 h-10;
-}
-
-/* Adjust the crafting item size */
-.crafting-item {
-  @apply w-5 h-5;
-}
-
-/* Add animation for particles */
 @keyframes particle-fade {
   0% {
     opacity: 1;
@@ -218,17 +91,11 @@ button:disabled {
   }
 }
 
-/* Ensure the active map slot has the same dimensions */
-.active-map-slot {
-  @apply w-14 h-14;
+/* Add this to your existing styles */
+.crafting-active {
+  cursor: none !important;
 }
 
-/* Remove the special blue border for the active map slot */
-.active-map-slot {
-  @apply border border-gray-600;  /* This restores the default border */
-}
-
-/* You can add a special border or highlight for the active map slot if desired */
-.active-map-slot {
-  @apply border-2 border-blue-500;
+.crafting-active * {
+  cursor: none !important;
 }
