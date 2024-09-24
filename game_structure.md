@@ -3,29 +3,39 @@
 ## Core Components
 
 1. IncrementalGame (Main Component)
-
    - Manages overall game state and UI
    - Integrates all other components and hooks
-2. Inventory Management
+   - Handles mouse interactions and tooltip display
+   - Manages crafting mode and item selection
+   - Renders the main game layout, including tabs and inventories
 
+2. Inventory Management
    - Storage: Main inventory for long-term item storage
    - Pouch: Temporary inventory filled during exploration
    - ActiveMap: Slot for the currently active map
-3. Exploration System
+   - Boxes: Additional inventory unlocked later in the game
 
+3. Exploration System
    - Handles map exploration mechanics
    - Manages exploration progress and loot generation
+   - Applies map modifiers to loot generation
+
 4. Upgrade System
-
    - Allows players to upgrade inventory and pouch sizes
-5. Item System
+   - Uses shinies as currency for upgrades
 
+5. Item System
    - Defines various items with different rarities and properties
    - Implements item stacking and sorting logic
-6. Save/Load System
+   - Includes special items like maps, modifying prisms, and enriching juice
 
+6. Save/Load System
    - Handles saving and loading game state
-   - Includes import/export functionality
+   - Includes import/export functionality for game data
+
+7. Crafting System
+   - Allows modification of items using Modifying Prisms
+   - Changes cursor appearance during crafting mode
 
 ## Key Components
 
@@ -39,58 +49,74 @@
 - Tooltip: Provides item information on hover
 - Glossary: Displays all discovered items
 - Settings: Manages game saving, loading, and import/export
+- ItemParticles: Displays particle effects for item updates
+- ContinuousParticles: Shows ongoing particle effects during exploration
 
 ## Custom Hooks
 
 - useGameState: Manages overall game state
-- useExploration: Handles exploration mechanics
-- useInventory: Manages inventory interactions and upgrades
+- useExploration: Handles exploration mechanics and loot generation
+- useInventory: Manages inventory interactions, upgrades, and item movement
 - useSaveLoad: Handles saving, loading, and import/export of game state
 
 ## Game Mechanics
 
 1. Exploration
-
    - Players use maps to start exploration
    - Exploration progresses automatically, generating loot
    - Loot is stored in the pouch during exploration
-2. Inventory Management
+   - Map modifiers affect loot generation and quantity
 
+2. Inventory Management
    - Players can move items between storage, pouch, and active map slot
    - Items can be stacked up to a maximum stack size
    - The pouch is always sorted by item rarity
    - Storage can be manually sorted
+   - Boxes inventory provides additional storage space
+
 3. Item Interaction
-
    - Left-click to pick up or place items
+   - Right-click to use items or initiate crafting
    - Ctrl+click for special actions (e.g., move from pouch to storage)
+
 4. Upgrade System
-
    - Players can upgrade storage and pouch sizes using shinies
+   - Upgrade costs increase exponentially
+
 5. Item Discovery
-
    - New items are added to the glossary when discovered
-6. Save/Load System
+   - Glossary can filter to show only discovered items
 
+6. Save/Load System
    - Autosave every 10 seconds
    - Manual save option
    - Import/Export game state as JSON file
 
+7. Crafting System
+   - Use Modifying Prisms to upgrade map rarity
+   - Crafting mode changes cursor appearance
+   - Right-click outside inventory slots to cancel crafting
+
 ## UI Structure
 
 1. Top Section
-
    - Exploration progress bar
    - Exploration controls (Get Map, Run It!, Abandon Map)
-   - Active Map slot
-   - Pouch display
-   - Storage display
-2. Bottom Section (Tabs)
+   - Active Map slot with particle effects during exploration
+   - Pouch display with "Take All" button
+   - Storage display with sort and clear buttons
 
-   - General: Upgrade options
+2. Bottom Section (Tabs)
+   - General: Upgrade options for inventory and pouch
    - Map: (Placeholder for future map-related upgrades)
-   - Glossary: Discovered items display
+   - Glossary: Discovered items display with filter option
    - Settings: Save, load, and import/export options
+
+3. Floating Elements
+   - Tooltip: Displays item information on hover
+   - Held item: Shows item being moved by the player
+   - Crafting item: Displays item being used for crafting
+   - Tooltip message: Shows temporary game messages
 
 ## Data Flow
 
@@ -98,14 +124,26 @@
 2. User interactions trigger functions in useInventory and useExploration hooks
 3. These hooks update the game state
 4. React components re-render based on the updated state
+5. Particle effects are triggered by item updates and exploration
+
+## Key Functions
+
+- handleItemInteraction: Manages all item interactions (click, ctrl+click, right-click)
+- startExploration: Initiates the exploration process
+- processLootTick: Generates loot during exploration, applying map modifiers
+- handleCtrlClick: Manages item movement between inventories
+- upgradeMap: Enhances map rarity and adds modifiers
+- addInventorySlot/addPouchSlot: Upgrades inventory sizes
+- saveGame/loadGame: Manages game state persistence
 
 ## Future Expansion Points
 
-1. Implement map enhancement using Enriching Juice
-2. Add more upgrade options
-3. Create different types of maps with varying rewards
-4. Implement uses for Modifying Prism
-5. Add a prestige system
-6. Implement achievements and statistics tracking
+1. Implement more uses for Enriching Juice
+2. Add more upgrade options and progression paths
+3. Create different types of maps with varying rewards and mechanics
+4. Expand the crafting system with more item modifications
+5. Implement a prestige system for long-term progression
+6. Add achievements and statistics tracking
+7. Introduce new game mechanics that interact with the existing systems
 
-This structure provides a solid foundation for the current game mechanics and allows for future expansions and improvements.
+This structure provides a comprehensive overview of the current game mechanics, components, and systems, while also highlighting areas for potential future development.
