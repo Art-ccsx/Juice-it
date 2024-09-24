@@ -37,7 +37,7 @@ export const ITEMS = [
     stackable: true,
     maxStack: 999,
     dropChance: MODIFYING_PRISM_DROP_CHANCE,
-    usable: true,
+    usable: true,  // This should already be set to true
   },
   {
     id: 'shinies',
@@ -78,3 +78,34 @@ export const MAP_ITEM = {
 };
 
 export const INITIAL_BOXES_INVENTORY_SIZE = 10;
+
+export const MAP_MODIFIERS = [
+  {
+    id: 'shinies_stack_boost',
+    name: 'Shinies Stack Boost',
+    description: 'Adds {x} to shinies stacks found over the course of the entire exploration',
+    minValue: 1,
+    maxValue: 2,
+  },
+  {
+    id: 'juice_stack_boost',
+    name: 'Enriching Juice Stack Boost',
+    description: 'Adds {x} to enriching juice stacks found over the course of the entire exploration',
+    minValue: 1,
+    maxValue: 1,
+  },
+  {
+    id: 'total_shinies_boost',
+    name: 'Total Shinies Boost',
+    description: 'Adds {x} total additional shinies found over the course of the entire exploration',
+    minValue: 2,
+    maxValue: 4,
+  },
+  {
+    id: 'total_juice_boost',
+    name: 'Total Enriching Juice Boost',
+    description: 'Adds {x} total additional juice found over the course of the entire exploration',
+    minValue: 1,
+    maxValue: 3,
+  },
+];

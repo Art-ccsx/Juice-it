@@ -1,7 +1,7 @@
 import React from 'react';
 import Image from 'next/image';
 
-const InventorySlot = ({ item, index, handleItemInteraction, onMouseEnter, onMouseLeave, onMouseMove, className = 'inventory-slot', isPouch = false, isActiveMap = false, isExploring = false, craftingItem }) => {
+const InventorySlot = ({ item, index, handleItemInteraction, onMouseEnter, onMouseLeave, onMouseMove, className = 'inventory-slot', isActiveMap = false, isExploring = false }) => {
 
   const handleClick = (event) => {
     if (!handleItemInteraction || (isActiveMap && isExploring)) return;
@@ -13,8 +13,7 @@ const InventorySlot = ({ item, index, handleItemInteraction, onMouseEnter, onMou
   
   const handleContextMenu = (event) => {
     event.preventDefault();
-    event.stopPropagation(); // Stop the event from bubbling up
-    console.log('Right-click detected on InventorySlot');
+    event.stopPropagation();
     if (!handleItemInteraction || (isActiveMap && isExploring)) return;
 
     const isCtrlClick = event.ctrlKey;
@@ -23,7 +22,6 @@ const InventorySlot = ({ item, index, handleItemInteraction, onMouseEnter, onMou
   };
 
   const getBorderColor = () => {
-    if (isActiveMap) return '#3B82F6'; // blue-500
     if (!item) return 'transparent';
     return item.rarity.color;
   };
@@ -36,39 +34,30 @@ const InventorySlot = ({ item, index, handleItemInteraction, onMouseEnter, onMou
       onMouseEnter={(e) => item && onMouseEnter(e, item)}
       onMouseLeave={onMouseLeave}
       onMouseMove={(e) => item && onMouseMove(e, item)}
+      style={{
+        borderColor: item ? getBorderColor() : '#4a5568', // Use default border color when no item
+        borderWidth: '1px',
+        borderStyle: 'solid'
+      }}
     >
-      <div 
-        className="w-full h-full"
-        style={{
-          borderWidth: '1px',
-          borderStyle: 'solid',
-          borderColor: getBorderColor()
-        }}
-      >
-        {item && (
-          <div className="w-full h-full relative select-none">
-            <Image
-              src={`/assets/${item.id}.png`}
-              alt={item.name}
-              layout="fill"
-              objectFit="contain"
-              draggable="false"
-            />
-            {item.stackable && item.count > 1 && (
-              <div className="absolute bottom-0 right-0 text-white text-xs font-bold pr-[2px] pb-[1px] select-none pointer-events-none" style={{
-                textShadow: '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000'
-              }}>
-                {item.count}
-              </div>
-            )}
-          </div>
-        )}
-        {craftingItem && craftingItem.sourceIndex === index && (
-          <div className="absolute inset-0 bg-yellow-500 bg-opacity-50 flex items-center justify-center select-none pointer-events-none">
-            <span className="text-white font-bold text-xs">Active</span>
-          </div>
-        )}
-      </div>
+      {item && (
+        <div className="w-full h-full relative select-none">
+          <Image
+            src={`/assets/${item.id}.png`}
+            alt={item.name}
+            layout="fill"
+            objectFit="contain"
+            draggable="false"
+          />
+          {item.stackable && item.count > 1 && (
+            <div className="absolute bottom-0 right-0 text-white text-xs font-bold pr-[2px] pb-[1px] select-none pointer-events-none" style={{
+              textShadow: '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000'
+            }}>
+              {item.count}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

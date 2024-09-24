@@ -153,3 +153,18 @@ button:disabled {
     transform: scale(0.5) translate(var(--tw-translate-x), var(--tw-translate-y));
   }
 }
+
+/* Ensure the active map slot has the same dimensions */
+.active-map-slot {
+  @apply w-14 h-14;
+}
+
+/* Remove the special blue border for the active map slot */
+.active-map-slot {
+  @apply border border-gray-600;  /* This restores the default border */
+}
+
+/* You can add a special border or highlight for the active map slot if desired */
+.active-map-slot {
+  @apply border-2 border-blue-500;
+}

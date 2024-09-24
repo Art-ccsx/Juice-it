@@ -18,13 +18,39 @@ const useExploration = (gameState, setGameState) => {
   const processLootTick = useCallback(() => {
     const rand = Math.random();
     let discoveredItem = null;
+    let additionalShinies = 0;
+    let additionalJuice = 0;
+
+    // Apply modifiers if there's an active map
+    if (gameState.activeMap && gameState.activeMap.modifiers) {
+      gameState.activeMap.modifiers.forEach(modifier => {
+        switch (modifier.id) {
+          case 'shinies_stack_boost':
+            if (rand < SHINIES_DROP_CHANCE) {
+              additionalShinies += modifier.value;
+            }
+            break;
+          case 'juice_stack_boost':
+            if (rand < ENRICHING_JUICE_DROP_CHANCE) {
+              additionalJuice += modifier.value;
+            }
+            break;
+          case 'total_shinies_boost':
+            additionalShinies += modifier.value;
+            break;
+          case 'total_juice_boost':
+            additionalJuice += modifier.value;
+            break;
+        }
+      });
+    }
 
     if (rand < ENRICHING_JUICE_DROP_CHANCE) {
-      discoveredItem = ITEMS.find(item => item.id === 'enriching_juice');
+      discoveredItem = { ...ITEMS.find(item => item.id === 'enriching_juice'), count: 1 + additionalJuice };
     } else if (rand < ENRICHING_JUICE_DROP_CHANCE + MODIFYING_PRISM_DROP_CHANCE) {
       discoveredItem = ITEMS.find(item => item.id === 'modifying_prism');
     } else if (rand < ENRICHING_JUICE_DROP_CHANCE + MODIFYING_PRISM_DROP_CHANCE + SHINIES_DROP_CHANCE) {
-      discoveredItem = ITEMS.find(item => item.id === 'shinies');
+      discoveredItem = { ...ITEMS.find(item => item.id === 'shinies'), count: 1 + additionalShinies };
     } else if (gameState.boxesUnlocked && rand < ENRICHING_JUICE_DROP_CHANCE + MODIFYING_PRISM_DROP_CHANCE + SHINIES_DROP_CHANCE + BOX_DROP_CHANCE) {
       discoveredItem = ITEMS.find(item => item.id === 'box');
     }
@@ -40,7 +66,7 @@ const useExploration = (gameState, setGameState) => {
             if (newPouch[i].count < discoveredItem.maxStack) {
               newPouch[i] = {
                 ...newPouch[i],
-                count: newPouch[i].count + 1
+                count: Math.min(newPouch[i].count + discoveredItem.count, discoveredItem.maxStack)
               };
               itemAdded = true;
               break;
@@ -52,7 +78,7 @@ const useExploration = (gameState, setGameState) => {
         if (!itemAdded) {
           const emptySlot = newPouch.findIndex(slot => slot === null);
           if (emptySlot !== -1) {
-            newPouch[emptySlot] = { ...discoveredItem, count: 1 };
+            newPouch[emptySlot] = discoveredItem;
             itemAdded = true;
           }
         }
@@ -67,7 +93,7 @@ const useExploration = (gameState, setGameState) => {
         return prevState;
       });
     }
-  }, [setGameState, gameState.boxesUnlocked]);
+  }, [gameState.activeMap, gameState.boxesUnlocked, setGameState]);
 
   const completeExploration = useCallback(() => {
     setGameState((prevState) => ({

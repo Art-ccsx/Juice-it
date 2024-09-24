@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { ITEMS, MAP_ITEM, RARITY, INITIAL_INVENTORY_SIZE, INITIAL_POUCH_SIZE, INITIAL_BOXES_INVENTORY_SIZE } from '../constants';
+import { ITEMS, MAP_ITEM, RARITY, INITIAL_INVENTORY_SIZE, INITIAL_POUCH_SIZE, INITIAL_BOXES_INVENTORY_SIZE, MAP_MODIFIERS } from '../constants';
 
 const useInventory = (gameState, setGameState) => {
   // Helper functions
@@ -53,7 +53,13 @@ const useInventory = (gameState, setGameState) => {
   }, []);
 
   const countItem = useCallback((inventory, itemId) => {
-    return inventory.reduce((sum, item) => sum + (item && item.id === itemId ? item.count : 0), 0);
+    const count = inventory.reduce((sum, item) => {
+      const itemCount = item && item.id === itemId ? (item.count || 1) : 0;
+      console.log('Counting item', { itemId, item, itemCount });
+      return sum + itemCount;
+    }, 0);
+    console.log('Total count', { itemId, count });
+    return count;
   }, []);
 
   // Interaction handlers
@@ -113,33 +119,98 @@ const useInventory = (gameState, setGameState) => {
     return state;
   }, [getItem, setItem]);
 
+  const upgradeMap = useCallback((targetItem) => {
+    const rarityOrder = [RARITY.COMMON, RARITY.UNCOMMON, RARITY.RARE, RARITY.EPIC, RARITY.LEGENDARY];
+    const currentRarityIndex = rarityOrder.findIndex(r => r.name === targetItem.rarity.name);
+    const newRarity = rarityOrder[Math.min(currentRarityIndex + 1, rarityOrder.length - 1)];
+    
+    // Generate a random modifier
+    const randomModifier = MAP_MODIFIERS[Math.floor(Math.random() * MAP_MODIFIERS.length)];
+    const modifierValue = Math.floor(Math.random() * (randomModifier.maxValue - randomModifier.minValue + 1)) + randomModifier.minValue;
+    
+    const newModifier = {
+      ...randomModifier,
+      value: modifierValue,
+    };
+    
+    return {
+      ...targetItem,
+      rarity: newRarity,
+      name: `${newRarity.name} ${targetItem.name.split(' ').slice(1).join(' ')}`,
+      modifiers: [...(targetItem.modifiers || []), newModifier],
+    };
+  }, []);
+
+  const updateStateAfterCrafting = useCallback((state, index, upgradedMap, material) => {
+    const newState = setItem(state, index, upgradedMap);
+    return {
+      ...newState,
+      craftingItem: null,
+      tooltipMessage: `Successfully upgraded map using ${material.name}`,
+    };
+  }, [setItem]);
+
   const handleCraftingInteraction = useCallback((state, index) => {
+    console.log('Crafting interaction started', { state, index });
     const material = state.craftingItem;
     const targetItem = getItem(index, state);
     
+    console.log('Crafting details', { material, targetItem });
+    
     if (material && targetItem && isCraftingApplicable(material, targetItem)) {
       const requiredAmount = 1;
-      const materialCount = countItem(state.inventory, material.id);
+      const materialCountInventory = countItem(state.inventory, material.id);
+      const materialCountPouch = countItem(state.pouch, material.id);
+      const totalMaterialCount = materialCountInventory + materialCountPouch;
       
-      if (materialCount >= requiredAmount) {
-        const newInventory = removeItems(state.inventory, material.id, requiredAmount);
+      console.log('Material counts', { 
+        materialCountInventory, 
+        materialCountPouch, 
+        totalMaterialCount,
+        inventoryLength: state.inventory.length,
+        pouchLength: state.pouch.length
+      });
+      
+      if (totalMaterialCount >= requiredAmount) {
+        let newInventory = [...state.inventory];
+        let newPouch = [...state.pouch];
+        
+        // Remove the material from inventory first, then from pouch if necessary
+        if (materialCountInventory > 0) {
+          newInventory = removeItems(newInventory, material.id, 1);
+        } else {
+          newPouch = removeItems(newPouch, material.id, 1);
+        }
+        
         const upgradedMap = upgradeMap(targetItem);
         
-        return updateStateAfterCrafting(state, index, newInventory, upgradedMap, material);
+        console.log('Upgraded map', upgradedMap);
+        
+        return updateStateAfterCrafting(
+          { ...state, inventory: newInventory, pouch: newPouch, craftingItem: null },
+          index,
+          upgradedMap,
+          material
+        );
       } else {
+        console.log('Not enough materials', { requiredAmount, totalMaterialCount });
         return { ...state, tooltipMessage: `You need 1 ${material.name}` };
       }
     }
     
+    console.log('Crafting not applicable', { material, targetItem });
     return state;
-  }, [getItem, countItem, removeItems]);
+  }, [getItem, countItem, removeItems, upgradeMap, updateStateAfterCrafting, isCraftingApplicable]);
 
   const handleRightClick = useCallback((state, index) => {
     const clickedItem = getItem(index, state);
+    console.log('Right-click on item', { clickedItem, index });
     if (!clickedItem || !clickedItem.usable) return state;
 
     if (clickedItem.id === 'modifying_prism') {
-      return { ...state, craftingItem: { ...clickedItem, sourceIndex: index } };
+      console.log('Setting crafting item', clickedItem);
+      const source = typeof index === 'string' && index.startsWith('pouch_') ? 'pouch' : 'inventory';
+      return { ...state, craftingItem: { ...clickedItem, sourceIndex: index, source } };
     }
 
     // Handle other usable items here
@@ -183,6 +254,7 @@ const useInventory = (gameState, setGameState) => {
   }, [getItem, setItem, handleCraftingInteraction]);
 
   const handleItemInteraction = useCallback((index, isCtrlClick, isRightClick, mouseEvent) => {
+    console.log('Item interaction', { index, isCtrlClick, isRightClick, mouseEvent });
     setGameState(prevState => {
       if (prevState.craftingItem && prevState.heldItem) return prevState;
 
@@ -205,41 +277,6 @@ const useInventory = (gameState, setGameState) => {
   // Utility functions
   const isCraftingApplicable = useCallback((craftingItem, targetItem) => {
     return craftingItem.id === 'modifying_prism' && targetItem.isMapItem;
-  }, []);
-
-  const upgradeMap = useCallback((targetItem) => {
-    const rarityOrder = [RARITY.COMMON, RARITY.UNCOMMON, RARITY.RARE, RARITY.EPIC, RARITY.LEGENDARY];
-    const currentRarityIndex = rarityOrder.findIndex(r => r.name === targetItem.rarity.name);
-    const newRarity = rarityOrder[Math.min(currentRarityIndex + 1, rarityOrder.length - 1)];
-    
-    return {
-      ...targetItem,
-      rarity: newRarity,
-      name: `${newRarity.name} ${targetItem.name.split(' ').slice(1).join(' ')}`,
-    };
-  }, []);
-
-  const updateStateAfterCrafting = useCallback((state, index, newInventory, upgradedMap, material) => {
-    let updatedState = {
-      ...state,
-      inventory: newInventory,
-      craftingItem: null,
-      tooltipMessage: `Upgraded map to ${upgradedMap.rarity.name} rarity!`,
-    };
-
-    if (typeof index === 'string') {
-      if (index.startsWith('pouch_')) {
-        updatedState.pouch = state.pouch.map((item, i) => i === parseInt(index.split('_')[1]) ? upgradedMap : item);
-      } else if (index === 'activeSlot') {
-        updatedState.activeMap = upgradedMap;
-      } else if (index.startsWith('boxes_')) {
-        updatedState.boxesInventory = state.boxesInventory.map((item, i) => i === parseInt(index.split('_')[1]) ? upgradedMap : item);
-      }
-    } else {
-      updatedState.inventory = updatedState.inventory.map((item, i) => i === index ? upgradedMap : item);
-    }
-
-    return updatedState;
   }, []);
 
   // Additional inventory management functions
@@ -349,7 +386,6 @@ const useInventory = (gameState, setGameState) => {
   const takeAllFromPouch = useCallback(() => {
     console.log('takeAllFromPouch function called');
     setGameState(prevState => {
-      console.log('Current state:', JSON.stringify(prevState, null, 2));
       let newInventory = [...prevState.inventory];
       let newPouch = [...prevState.pouch];
       let newBoxesInventory = [...prevState.boxesInventory];
@@ -357,17 +393,16 @@ const useInventory = (gameState, setGameState) => {
 
       newPouch.forEach((pouchItem, pouchIndex) => {
         if (pouchItem) {
-          console.log(`Processing pouch item at index ${pouchIndex}:`, pouchItem);
-          let remainingCount = pouchItem.count;
-          console.log(`Initial remaining count: ${remainingCount}`);
+          console.log(`Processing pouch item:`, pouchItem);
+          let remainingCount = pouchItem.count || 1;  // Default to 1 if count is not defined
 
           if (pouchItem.id === 'box' && prevState.boxesUnlocked) {
             const boxesIndex = newBoxesInventory.findIndex(slot => slot === null);
             if (boxesIndex !== -1) {
-              console.log(`Moving box to boxes inventory at index ${boxesIndex}`);
               newBoxesInventory[boxesIndex] = { ...pouchItem, count: 1 };
               remainingCount--;
               itemsMoved = true;
+              console.log(`Moved box to boxes inventory`);
             }
           }
 
@@ -376,13 +411,13 @@ const useInventory = (gameState, setGameState) => {
             if (newInventory[i] && newInventory[i].id === pouchItem.id && newInventory[i].stackable) {
               const spaceInStack = newInventory[i].maxStack - newInventory[i].count;
               const amountToAdd = Math.min(spaceInStack, remainingCount);
-              console.log(`Adding ${amountToAdd} to existing stack at index ${i}`);
               newInventory[i] = {
                 ...newInventory[i],
                 count: newInventory[i].count + amountToAdd
               };
               remainingCount -= amountToAdd;
               itemsMoved = true;
+              console.log(`Added ${amountToAdd} ${pouchItem.id} to existing stack`);
             }
           }
 
@@ -390,34 +425,31 @@ const useInventory = (gameState, setGameState) => {
           while (remainingCount > 0) {
             const emptySlot = newInventory.findIndex(slot => slot === null);
             if (emptySlot === -1) {
-              console.log('No more empty slots in inventory');
+              console.log(`No more empty slots for ${pouchItem.id}`);
               break;
             }
-            const amountToAdd = Math.min(remainingCount, pouchItem.maxStack);
-            console.log(`Adding ${amountToAdd} to new stack at index ${emptySlot}`);
+            const amountToAdd = Math.min(remainingCount, pouchItem.maxStack || 1);
             newInventory[emptySlot] = { ...pouchItem, count: amountToAdd };
             remainingCount -= amountToAdd;
             itemsMoved = true;
+            console.log(`Added ${amountToAdd} ${pouchItem.id} to empty slot`);
           }
 
           if (remainingCount === 0) {
-            console.log(`Removing item from pouch at index ${pouchIndex}`);
             newPouch[pouchIndex] = null;
+            console.log(`Removed ${pouchItem.id} from pouch`);
           } else {
-            console.log(`Updating pouch item count at index ${pouchIndex} to ${remainingCount}`);
             newPouch[pouchIndex] = { ...pouchItem, count: remainingCount };
+            console.log(`Updated ${pouchItem.id} count in pouch to ${remainingCount}`);
           }
         }
       });
 
-      console.log('Items moved:', itemsMoved);
-      console.log('New inventory:', newInventory);
-      console.log('New pouch:', newPouch);
-      console.log('New boxes inventory:', newBoxesInventory);
+      console.log('Take all from pouch result', { itemsMoved, newInventory, newPouch, newBoxesInventory });
 
       return itemsMoved ? { ...prevState, inventory: newInventory, pouch: newPouch, boxesInventory: newBoxesInventory } : prevState;
     });
-  }, [setGameState]);
+  }, []);
 
   const unlockBoxes = useCallback(() => {
     console.log('unlockBoxes function called');
