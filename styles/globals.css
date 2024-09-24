@@ -6,6 +6,70 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-game-bg text-game-text text-sm;
+  }
+
+  h1 {
+    @apply text-3xl;
+  }
+
+  h2 {
+    @apply text-xl;
+  }
+
+  h3 {
+    @apply text-lg;
+  }
+
+  button {
+    @apply transition-colors duration-200;
+  }
+
+  button:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+}
+
+@layer components {
+  .inventory-slot,
+  .active-map-slot,
+  .glossary-item {
+    @apply w-14 h-14 border border-gray-600 rounded-none overflow-hidden bg-gray-700 p-0.5;
+  }
+
+  .inventory-slot > div,
+  .active-map-slot > div,
+  .glossary-item > div {
+    @apply w-full h-full relative ;
+  }
+
+  .inventory-slot img,
+  .active-map-slot img,
+  .glossary-item img {
+    @apply object-contain;
+  }
+
+  .held-item {
+    @apply w-10 h-10;
+  }
+
+  .held-item img {
+    @apply w-full h-full object-contain;
+  }
+
+  .item-count {
+    @apply absolute bottom-0 right-0 text-white text-xs font-bold pr-1 pb-1 select-none pointer-events-none;
+    text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+  }
+}
+
 /* Global styles */
 * {
   -webkit-font-smoothing: antialiased;
@@ -63,21 +127,21 @@ button:disabled {
 
 /* Remove gaps between inventory slots */
 .inventory-grid {
-  @apply grid grid-cols-10 bg-gray-800 p-[0px] rounded-md;
+  @apply grid grid-cols-10 bg-gray-800 p-0 rounded-md;
 }
 
-/* Update inventory slot sizes */
+/* Update inventory slot sizes and padding */
 .inventory-slot,
 .active-map-slot,
 .glossary-item {
-  @apply w-14 h-14 border border-gray-600 rounded-none overflow-hidden bg-gray-700 p-0;
+  @apply w-14 h-14 border border-gray-600 rounded-none overflow-hidden bg-gray-700 p-1;
 }
 
-/* Add padding for images within borders */
+/* Remove the padding for images within borders as it's now handled by the slot itself */
 .inventory-slot > div,
 .active-map-slot > div,
 .glossary-item > div {
-  @apply p-1;
+  @apply p-0.5;
 }
 
 /* Remove the custom size for larger screens */

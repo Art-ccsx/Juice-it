@@ -8,9 +8,6 @@ const Pouch = ({ inventory, handleItemInteraction, onMouseEnter, onMouseLeave, o
   const particleKeyRef = useRef(0);
 
   useEffect(() => {
-    console.log('Inventory updated:', inventory);
-    console.log('Previous inventory:', prevInventoryRef.current);
-
     const newUpdatedSlots = {};
     inventory.forEach((item, index) => {
       const prevItem = prevInventoryRef.current[index];
@@ -18,15 +15,12 @@ const Pouch = ({ inventory, handleItemInteraction, onMouseEnter, onMouseLeave, o
         (item && !prevItem) || 
         (item && prevItem && (prevItem.id !== item.id || item.count !== prevItem.count))
       ) {
-        console.log(`Slot ${index} updated:`, { prevItem, newItem: item });
         newUpdatedSlots[index] = {
           item,
           key: particleKeyRef.current++
         };
       }
     });
-
-    console.log('New updated slots:', newUpdatedSlots);
 
     if (Object.keys(newUpdatedSlots).length > 0) {
       setUpdatedSlots(prev => ({...prev, ...newUpdatedSlots}));
@@ -43,26 +37,12 @@ const Pouch = ({ inventory, handleItemInteraction, onMouseEnter, onMouseLeave, o
     return () => clearTimeout(timer);
   }, [updatedSlots]);
 
-  const handleTakeAll = () => {
-    if (isExploring) return;
-    takeAllFromPouch();
-  };
-
   return (
     <div>
-      <div className="flex justify-between items-center mb-2">
-        <h2 className="text-xl font-bold">Pouch</h2>
-        <button
-          className="bg-game-button hover:bg-game-button-hover text-white font-bold py-1 px-2 rounded text-sm"
-          onClick={handleTakeAll}
-          disabled={isExploring}
-        >
-          Take All
-        </button>
-      </div>
-      <div className="flex flex-wrap relative">
+      <h2 className="text-xl font-bold mb-2">Pouch</h2>
+      <div className="flex flex-wrap">
         {inventory.map((item, index) => (
-          <div key={`pouch_${index}`} className="relative">
+          <div key={index} className="relative">
             <InventorySlot
               item={item}
               index={`pouch_${index}`}
@@ -71,17 +51,22 @@ const Pouch = ({ inventory, handleItemInteraction, onMouseEnter, onMouseLeave, o
               onMouseLeave={onMouseLeave}
               onMouseMove={onMouseMove}
               className="inventory-slot"
-              isPouch={true}
+              isExploring={isExploring}
             />
-            {updatedSlots[index] && item && (
-              <ItemParticles 
-                key={updatedSlots[index].key} 
-                color={item.rarity.color} 
-              />
+            {updatedSlots[index] && (
+              <ItemParticles key={updatedSlots[index].key} item={updatedSlots[index].item} />
             )}
           </div>
         ))}
       </div>
+      <button 
+        onClick={isExploring ? null : takeAllFromPouch}
+        className={`mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors ${isExploring ? 'opacity-50' : ''}`}
+        disabled={isExploring}
+        style={{ cursor: isExploring ? 'default' : 'pointer' }}
+      >
+        Take All
+      </button>
     </div>
   );
 };
