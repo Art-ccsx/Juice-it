@@ -8,7 +8,6 @@ const InventorySlot = ({ item, index, handleItemInteraction, onMouseEnter, onMou
 
     const isCtrlClick = event.ctrlKey;
     const isRightClick = event.button === 2;
-    console.log('InventorySlot click:', { index, isCtrlClick, isRightClick, isCrafting });
     handleItemInteraction(index, isCtrlClick, isRightClick, 'click');
   };
   
@@ -19,7 +18,6 @@ const InventorySlot = ({ item, index, handleItemInteraction, onMouseEnter, onMou
 
     const isCtrlClick = event.ctrlKey;
     const isRightClick = true;
-    console.log('InventorySlot context menu:', { index, isCtrlClick, isRightClick, isCrafting });
     handleItemInteraction(index, isCtrlClick, isRightClick, 'contextmenu');
   };
 

@@ -182,9 +182,45 @@ const IncrementalGame = () => {
             showSaveMessage={showSaveMessage}
           />
         );
+      case 'debug':
+        return (
+          <div>
+            <h3 className="text-xl font-bold mb-2">Debug</h3>
+            <div className="grid grid-cols-3 gap-2">
+              {[...ITEMS, MAP_ITEM].map((item) => (
+                <button
+                  key={item.id}
+                  className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded text-sm"
+                  onClick={() => spawnItem(item)}
+                >
+                  Spawn {item.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
       default:
         return null;
     }
+  };
+
+  const spawnItem = (item) => {
+    setGameState(prevState => {
+      const emptySlot = prevState.inventory.findIndex(slot => slot === null);
+      if (emptySlot !== -1) {
+        const newInventory = [...prevState.inventory];
+        newInventory[emptySlot] = { ...item, count: 1 };
+        return {
+          ...prevState,
+          inventory: newInventory,
+          discoveredItems: new Set([...prevState.discoveredItems, item.id])
+        };
+      }
+      return {
+        ...prevState,
+        tooltipMessage: "No empty slots in inventory for spawned item!"
+      };
+    });
   };
 
   const renderLeftTabContent = () => {
@@ -288,12 +324,7 @@ const IncrementalGame = () => {
   }, [gameState.boxesUnlocked, leftActiveTab, setLeftActiveTab]);
 
   const cursorStyle = useMemo(() => {
-    console.log('Cursor style update:', gameState.craftingItem ? 'crafting-active' : '');
     return gameState.craftingItem ? 'crafting-active' : '';
-  }, [gameState.craftingItem]);
-
-  useEffect(() => {
-    console.log('Crafting item changed:', gameState.craftingItem);
   }, [gameState.craftingItem]);
 
   return (
@@ -433,6 +464,14 @@ const IncrementalGame = () => {
                 onClick={() => setActiveTab('settings')}
               >
                 Settings
+              </button>
+              <button
+                className={`px-4 py-2 font-semibold rounded-t-lg ml-2 ${
+                  activeTab === 'debug' ? 'bg-gray-800 text-white' : 'bg-gray-600 text-gray-300'
+                }`}
+                onClick={() => setActiveTab('debug')}
+              >
+                Debug
               </button>
             </div>
             <div className="flex-1 p-3 bg-gray-800 rounded-b-lg overflow-y-auto">
