@@ -7,7 +7,7 @@ import { getInventoryUpgradeCost, addInventorySlot as addInventorySlotUpgrade, a
 import useBoxSystem from './useBoxSystem';
 
 const useInventory = (gameState, setGameState) => {
-  const { openBox, takeAllFromBoxDrops, clearBoxDrops } = useBoxSystem(gameState, setGameState);
+  const { openBox, takeAllFromBoxDrops, clearBoxDrops, useKeyOnLockbox } = useBoxSystem(gameState, setGameState);
   const [upgradedItem, setUpgradedItem] = useState(null);
 
   const handleItemInteraction = useCallback((index, isCtrlClick, isRightClick, mouseEvent, isShiftHeld) => {
@@ -19,13 +19,27 @@ const useInventory = (gameState, setGameState) => {
       if (isCtrlClick) {
         newState = handleCtrlClick(newState, index);
       } else if (isRightClick) {
+        if (typeof index === 'string' && index.startsWith('boxes_')) {
+          const boxIndex = parseInt(index.split('_')[1]);
+          const item = newState.boxesInventory[boxIndex];
+          if (item && item.id === 'simple_key') {
+            newState.craftingItem = item;
+            newState.tooltipMessage = "Key selected. Click on a lockbox to open it.";
+            return newState;
+          }
+        }
         newState = handleRightClick(newState, index);
       } else if (!isRightClick && mouseEvent === 'click') {
         if (typeof index === 'string') {
           if (index.startsWith('boxes_')) {
             const boxIndex = parseInt(index.split('_')[1]);
-            if (newState.boxesInventory[boxIndex]) {
+            const item = newState.boxesInventory[boxIndex];
+            if (item && item.id === 'box') {
               openBox(boxIndex);
+            } else if (newState.craftingItem && newState.craftingItem.id === 'simple_key' && item && item.id === 'simple_lockbox') {
+              const keyIndex = newState.boxesInventory.findIndex(i => i && i.id === 'simple_key');
+              useKeyOnLockbox(keyIndex, boxIndex);
+              newState.craftingItem = null;
             } else if (newState.heldItem && (newState.heldItem.id === 'box' || newState.heldItem.id === 'simple_lockbox' || newState.heldItem.id === 'simple_key')) {
               newState = handleLeftClick(newState, index, (state, idx) => handleCraftingInteraction(state, idx, isShiftHeld));
             } else {
@@ -53,7 +67,7 @@ const useInventory = (gameState, setGameState) => {
 
       return newState;
     });
-  }, [openBox]);
+  }, [openBox, useKeyOnLockbox]);
 
   const getMap = useCallback(() => {
     setGameState(prevState => {

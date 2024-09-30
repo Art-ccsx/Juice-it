@@ -306,54 +306,58 @@ const IncrementalGame = () => {
     switch (leftActiveTab) {
       case 'boxes':
         return (
-          <div>
-            <h3 className="text-xl font-bold mb-2">Boxes and Keys</h3>
-            <div className="flex flex-wrap mb-4">
-              {gameState.boxesInventory.map((item, index) => (
-                <InventorySlot
-                  key={index}
-                  item={item}
-                  index={`boxes_${index}`}
-                  handleItemInteraction={handleItemInteraction}
-                  onMouseEnter={handleMouseEnter}
-                  onMouseLeave={handleMouseLeave}
-                  onMouseMove={handleMouseMove}
-                  className="inventory-slot w-8 h-8"
-                />
-              ))}
-            </div>
-            <h3 className="text-xl font-bold mb-2">Box Drops</h3>
-            <div className="flex flex-wrap mb-2">
-              {gameState.boxDrops.map((item, index) => (
-                <div key={index} className="relative">
+          <div className="flex">
+            <div className="w-1/2 pr-2">
+              <h3 className="text-xl font-bold mb-2">Boxes and Keys</h3>
+              <div className="flex flex-wrap mb-4">
+                {gameState.boxesInventory.map((item, index) => (
                   <InventorySlot
+                    key={index}
                     item={item}
-                    index={`boxDrops_${index}`}
+                    index={`boxes_${index}`}
                     handleItemInteraction={handleItemInteraction}
                     onMouseEnter={handleMouseEnter}
                     onMouseLeave={handleMouseLeave}
                     onMouseMove={handleMouseMove}
                     className="inventory-slot w-8 h-8"
                   />
-                  {updatedBoxDrops[index] && (
-                    <ItemParticles key={`particle_${index}`} item={updatedBoxDrops[index]} />
-                  )}
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-            <div className="flex space-x-2">
-              <button 
-                onClick={takeAllFromBoxDrops}
-                className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-              >
-                Take All from Box Drops
-              </button>
-              <button 
-                onClick={clearBoxDrops}
-                className="mt-2 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-              >
-                Clear Box Drops
-              </button>
+            <div className="w-1/2 pl-2">
+              <h3 className="text-xl font-bold mb-2">Box Drops</h3>
+              <div className="flex flex-wrap mb-2">
+                {gameState.boxDrops.map((item, index) => (
+                  <div key={index} className="relative">
+                    <InventorySlot
+                      item={item}
+                      index={`boxDrops_${index}`}
+                      handleItemInteraction={handleItemInteraction}
+                      onMouseEnter={handleMouseEnter}
+                      onMouseLeave={handleMouseLeave}
+                      onMouseMove={handleMouseMove}
+                      className="inventory-slot w-8 h-8"
+                    />
+                    {updatedBoxDrops[index] && (
+                      <ItemParticles key={`particle_${index}`} item={updatedBoxDrops[index]} />
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="flex space-x-2">
+                <button 
+                  onClick={takeAllFromBoxDrops}
+                  className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                >
+                  Take All from Box Drops
+                </button>
+                <button 
+                  onClick={clearBoxDrops}
+                  className="mt-2 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                >
+                  Clear Box Drops
+                </button>
+              </div>
             </div>
           </div>
         );

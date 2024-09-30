@@ -65,6 +65,77 @@ const useBoxSystem = (gameState, setGameState) => {
     });
   }, []);
 
+  const useKeyOnLockbox = useCallback((keyIndex, lockboxIndex) => {
+    setGameState(prevState => {
+      const newBoxesInventory = [...prevState.boxesInventory];
+      const newBoxDrops = [...prevState.boxDrops];
+      const newUpdatedBoxDrops = {};
+      
+      const key = newBoxesInventory[keyIndex];
+      const lockbox = newBoxesInventory[lockboxIndex];
+
+      if (key.id !== 'simple_key' || lockbox.id !== 'simple_lockbox') {
+        return {
+          ...prevState,
+          tooltipMessage: "Invalid key or lockbox"
+        };
+      }
+
+      // Remove the key and lockbox
+      newBoxesInventory[keyIndex] = null;
+      newBoxesInventory[lockboxIndex] = null;
+
+      // Generate loot (you can modify this to have different loot for lockboxes)
+      const loot = generateBoxLoot();
+
+      // Add loot to box drops inventory (similar to openBox logic)
+      loot.forEach(item => {
+        if (item.id !== 'box') { // Prevent boxes from dropping boxes
+          const existingItemIndex = newBoxDrops.findIndex(slot => slot && slot.id === item.id);
+          if (existingItemIndex !== -1) {
+            // Stack with existing item
+            const existingItem = newBoxDrops[existingItemIndex];
+            const newCount = Math.min(existingItem.count + item.count, existingItem.maxStack);
+            newBoxDrops[existingItemIndex] = { ...existingItem, count: newCount };
+            newUpdatedBoxDrops[existingItemIndex] = newBoxDrops[existingItemIndex];
+          } else {
+            // Add new item
+            const emptySlot = newBoxDrops.findIndex(slot => slot === null);
+            if (emptySlot !== -1) {
+              newBoxDrops[emptySlot] = item;
+              newUpdatedBoxDrops[emptySlot] = item;
+            }
+          }
+        }
+      });
+
+      // Sort box drops inventory
+      const sortedBoxDrops = newBoxDrops
+        .filter(item => item !== null)
+        .sort((a, b) => {
+          const rarityOrder = [RARITY.LEGENDARY, RARITY.EPIC, RARITY.RARE, RARITY.UNCOMMON, RARITY.COMMON];
+          const rarityDiffA = rarityOrder.findIndex(r => r.name === a.rarity.name);
+          const rarityDiffB = rarityOrder.findIndex(r => r.name === b.rarity.name);
+          if (rarityDiffA !== rarityDiffB) return rarityDiffA - rarityDiffB;
+          return a.name.localeCompare(b.name);
+        });
+
+      // Fill the rest with null
+      while (sortedBoxDrops.length < newBoxDrops.length) {
+        sortedBoxDrops.push(null);
+      }
+
+      setUpdatedBoxDrops(newUpdatedBoxDrops);
+
+      return {
+        ...prevState,
+        boxesInventory: newBoxesInventory,
+        boxDrops: sortedBoxDrops,
+        tooltipMessage: `Opened a lockbox and received ${loot.length} items!`
+      };
+    });
+  }, []);
+
   const takeAllFromBoxDrops = useCallback(() => {
     setGameState(prevState => {
       let newInventory = [...prevState.inventory];
@@ -151,7 +222,8 @@ const useBoxSystem = (gameState, setGameState) => {
     takeAllFromBoxDrops,
     clearBoxDrops,
     updatedBoxDrops,
-    setUpdatedBoxDrops
+    setUpdatedBoxDrops,
+    useKeyOnLockbox
   };
 };
 
