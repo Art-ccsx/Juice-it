@@ -23,7 +23,7 @@ import ItemParticles from './ItemParticles';
 const IncrementalGame = () => {
   const { gameState, setGameState, activeTab, setActiveTab, leftActiveTab, setLeftActiveTab } = useGameState();
   const { startExploration, completeExploration, abandonExploration, processLootTick } = useExploration(gameState, setGameState);
-  const { handleItemInteraction, addInventorySlot, addPouchSlot, getMap, getInventoryUpgradeCost, clearStorage, sortStorage, takeAllFromPouch, craftingItem, unlockBoxes, spawnItem, openBox, takeAllFromBoxDrops, clearBoxDrops } = useInventory(gameState, setGameState);
+  const { handleItemInteraction, addInventorySlot, addPouchSlot, getMap, getInventoryUpgradeCost, clearStorage, sortStorage, takeAllFromPouch, craftingItem, unlockBoxes, spawnItem, openBox, takeAllFromBoxDrops, clearBoxDrops, upgradedItem, setUpgradedItem } = useInventory(gameState, setGameState);
   const { saveGame, loadGame, exportGame, importGame, lastSaveTime, showSaveMessage } = useSaveLoad(gameState, setGameState, activeTab, setActiveTab);
   const { updatedBoxDrops, setUpdatedBoxDrops } = useBoxSystem(gameState, setGameState);
 
@@ -140,9 +140,70 @@ const IncrementalGame = () => {
     return gameState.inventory.findIndex(item => item === null);
   }, [gameState.inventory]);
 
-  const debugSpawnItem = (item) => {
-    spawnItem(item.id);
-  };
+  const debugSpawnItem = useCallback((item) => {
+    setGameState(prevState => {
+      let newInventory = [...prevState.inventory];
+      let newBoxesInventory = [...prevState.boxesInventory];
+      let added = false;
+
+      if ((item.id === 'box' || item.id === 'simple_lockbox' || item.id === 'simple_key') && prevState.boxesUnlocked) {
+        // For boxes and keys, try to add to boxes inventory
+        if (item.stackable) {
+          const existingStackIndex = newBoxesInventory.findIndex(slot => slot && slot.id === item.id && slot.count < slot.maxStack);
+          if (existingStackIndex !== -1) {
+            newBoxesInventory[existingStackIndex] = {
+              ...newBoxesInventory[existingStackIndex],
+              count: newBoxesInventory[existingStackIndex].count + 1
+            };
+            added = true;
+          }
+        }
+        
+        if (!added) {
+          const emptySlot = newBoxesInventory.findIndex(slot => slot === null);
+          if (emptySlot !== -1) {
+            newBoxesInventory[emptySlot] = { ...item, count: 1 };
+            added = true;
+          }
+        }
+      } else {
+        // For other items, try to add to main inventory
+        if (item.stackable) {
+          const existingStackIndex = newInventory.findIndex(slot => slot && slot.id === item.id && slot.count < slot.maxStack);
+          if (existingStackIndex !== -1) {
+            newInventory[existingStackIndex] = {
+              ...newInventory[existingStackIndex],
+              count: newInventory[existingStackIndex].count + 1
+            };
+            added = true;
+          }
+        }
+        
+        if (!added) {
+          const emptySlot = newInventory.findIndex(slot => slot === null);
+          if (emptySlot !== -1) {
+            newInventory[emptySlot] = { ...item, count: 1 };
+            added = true;
+          }
+        }
+      }
+
+      if (added) {
+        return {
+          ...prevState,
+          inventory: newInventory,
+          boxesInventory: newBoxesInventory,
+          discoveredItems: new Set([...prevState.discoveredItems, item.id]),
+          tooltipMessage: `Spawned 1 ${item.name}`
+        };
+      } else {
+        return {
+          ...prevState,
+          tooltipMessage: "No space available to spawn item!"
+        };
+      }
+    });
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -151,6 +212,16 @@ const IncrementalGame = () => {
 
     return () => clearTimeout(timer);
   }, [updatedBoxDrops, setUpdatedBoxDrops]);
+
+  useEffect(() => {
+    if (upgradedItem) {
+      const timer = setTimeout(() => {
+        setUpgradedItem(null);
+      }, 1000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [upgradedItem, setUpgradedItem]);
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -181,7 +252,6 @@ const IncrementalGame = () => {
         return (
           <Glossary
             discoveredItems={gameState.discoveredItems}
-            spawnItem={spawnItem}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             onMouseMove={handleMouseMove}
@@ -202,15 +272,18 @@ const IncrementalGame = () => {
         return (
           <div>
             <h3 className="text-xl font-bold mb-2">Debug</h3>
-            <div className="grid grid-cols-3 gap-2">
-              {[...ITEMS, MAP_ITEM].map((item) => (
-                <button
+            <div className="flex flex-wrap">
+              {[...ITEMS, MAP_ITEM].map((item, index) => (
+                <InventorySlot
                   key={item.id}
-                  className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded text-sm"
-                  onClick={() => debugSpawnItem(item)}
-                >
-                  Spawn {item.name}
-                </button>
+                  item={item}
+                  index={index}
+                  handleItemInteraction={() => debugSpawnItem(item)}
+                  onMouseEnter={handleMouseEnter}
+                  onMouseLeave={handleMouseLeave}
+                  onMouseMove={handleMouseMove}
+                  className="inventory-slot cursor-pointer"
+                />
               ))}
             </div>
           </div>
@@ -570,6 +643,21 @@ const IncrementalGame = () => {
             }}
           >
             {gameState.tooltipMessage}
+          </div>
+        )}
+        {upgradedItem && upgradedItem.position && (
+          <div 
+            style={{
+              position: 'fixed',
+              left: upgradedItem.position.left,
+              top: upgradedItem.position.top,
+              width: upgradedItem.position.width,
+              height: upgradedItem.position.height,
+              pointerEvents: 'none',
+              zIndex: 1000,
+            }}
+          >
+            <ItemParticles item={upgradedItem} />
           </div>
         )}
       </div>

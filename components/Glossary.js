@@ -2,15 +2,8 @@ import React from 'react';
 import { ITEMS, MAP_ITEM } from '../constants';
 import InventorySlot from './InventorySlot';
 
-const Glossary = ({ discoveredItems, spawnItem, onMouseEnter, onMouseLeave, onMouseMove }) => {
+const Glossary = ({ discoveredItems, onMouseEnter, onMouseLeave, onMouseMove }) => {
   const allItems = [...ITEMS, MAP_ITEM];
-
-  const handleItemInteraction = (index) => {
-    const item = allItems[index];
-    if (discoveredItems.has(item.id)) {
-      spawnItem(item.id);
-    }
-  };
 
   return (
     <div className="flex flex-wrap">
@@ -19,11 +12,11 @@ const Glossary = ({ discoveredItems, spawnItem, onMouseEnter, onMouseLeave, onMo
           key={item.id}
           item={discoveredItems.has(item.id) ? item : { ...item, name: '???', description: 'Not yet discovered' }}
           index={index}
-          handleItemInteraction={handleItemInteraction}
+          handleItemInteraction={() => {}} // Empty function, no interaction on click
           onMouseEnter={onMouseEnter}
           onMouseLeave={onMouseLeave}
           onMouseMove={onMouseMove}
-          className={`inventory-slot ${discoveredItems.has(item.id) ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
+          className={`inventory-slot ${discoveredItems.has(item.id) ? '' : 'opacity-50'}`}
         />
       ))}
     </div>

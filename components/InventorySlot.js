@@ -8,7 +8,9 @@ const InventorySlot = ({ item, index, handleItemInteraction, onMouseEnter, onMou
 
     const isCtrlClick = event.ctrlKey;
     const isRightClick = event.button === 2;
-    handleItemInteraction(index, isCtrlClick, isRightClick, 'click');
+    const isShiftHeld = event.shiftKey;
+    console.log("InventorySlot click", { isCtrlClick, isRightClick, isShiftHeld });
+    handleItemInteraction(index, isCtrlClick, isRightClick, 'click', isShiftHeld);
   };
   
   const handleContextMenu = (event) => {
@@ -18,7 +20,8 @@ const InventorySlot = ({ item, index, handleItemInteraction, onMouseEnter, onMou
 
     const isCtrlClick = event.ctrlKey;
     const isRightClick = true;
-    handleItemInteraction(index, isCtrlClick, isRightClick, 'contextmenu');
+    const isShiftHeld = event.shiftKey;
+    handleItemInteraction(index, isCtrlClick, isRightClick, 'contextmenu', isShiftHeld);
   };
 
   return (
@@ -32,6 +35,7 @@ const InventorySlot = ({ item, index, handleItemInteraction, onMouseEnter, onMou
       style={{
         borderColor: item && item.rarity ? item.rarity.color : undefined,
       }}
+      data-index={index}
     >
       {item && (
         <div className="inventory-slot-content">

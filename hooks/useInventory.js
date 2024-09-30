@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { ITEMS, MAP_ITEM, RARITY } from '../constants';
 import { getItem, setItem, removeItem } from './inventoryHelpers';
 import { handleCtrlClick, handleRightClick, handleLeftClick } from './itemInteractions';
@@ -8,8 +8,9 @@ import useBoxSystem from './useBoxSystem';
 
 const useInventory = (gameState, setGameState) => {
   const { openBox, takeAllFromBoxDrops, clearBoxDrops } = useBoxSystem(gameState, setGameState);
+  const [upgradedItem, setUpgradedItem] = useState(null);
 
-  const handleItemInteraction = useCallback((index, isCtrlClick, isRightClick, mouseEvent) => {
+  const handleItemInteraction = useCallback((index, isCtrlClick, isRightClick, mouseEvent, isShiftHeld) => {
     setGameState(prevState => {
       if (prevState.craftingItem && prevState.heldItem) return prevState;
 
@@ -26,21 +27,28 @@ const useInventory = (gameState, setGameState) => {
             if (newState.boxesInventory[boxIndex]) {
               openBox(boxIndex);
             } else if (newState.heldItem && (newState.heldItem.id === 'box' || newState.heldItem.id === 'simple_lockbox' || newState.heldItem.id === 'simple_key')) {
-              // Allow placing boxes, lockboxes, and keys in the boxes inventory
-              newState = handleLeftClick(newState, index, handleCraftingInteraction);
+              newState = handleLeftClick(newState, index, (state, idx) => handleCraftingInteraction(state, idx, isShiftHeld));
             } else {
-              // If trying to place a non-allowed item, don't do anything
               return newState;
             }
           } else if (index.startsWith('boxDrops_')) {
-            // Prevent dropping items into box drops inventory
             return newState;
           } else {
-            newState = handleLeftClick(newState, index, handleCraftingInteraction);
+            const result = handleLeftClick(newState, index, (state, idx) => handleCraftingInteraction(state, idx, isShiftHeld));
+            newState = result.continueCrafting ? { ...result, craftingItem: newState.craftingItem } : result;
           }
         } else {
-          newState = handleLeftClick(newState, index, handleCraftingInteraction);
+          const result = handleLeftClick(newState, index, (state, idx) => handleCraftingInteraction(state, idx, isShiftHeld));
+          newState = result.continueCrafting ? { ...result, craftingItem: newState.craftingItem } : result;
         }
+      }
+
+      if (newState.upgradedItem) {
+        setUpgradedItem({
+          ...newState.upgradedItem,
+          position: document.querySelector(`[data-index="${newState.upgradedItem.index}"]`)?.getBoundingClientRect()
+        });
+        delete newState.upgradedItem;
       }
 
       return newState;
@@ -52,7 +60,7 @@ const useInventory = (gameState, setGameState) => {
       const emptySlot = prevState.inventory.findIndex(slot => slot === null);
       if (emptySlot !== -1) {
         const newInventory = [...prevState.inventory];
-        newInventory[emptySlot] = { ...MAP_ITEM, count: 1 };
+        newInventory[emptySlot] = { ...MAP_ITEM, name: 'Map', count: 1 }; // Changed from MAP_ITEM.name to just 'Map'
         return {
           ...prevState,
           inventory: newInventory,
@@ -222,6 +230,8 @@ const useInventory = (gameState, setGameState) => {
     openBox,
     takeAllFromBoxDrops,
     clearBoxDrops,
+    upgradedItem,
+    setUpgradedItem,
   };
 };
 

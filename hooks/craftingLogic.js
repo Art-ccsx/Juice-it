@@ -33,13 +33,14 @@ export const upgradeMap = (targetItem) => {
       newMapName = '';
   }
   
-  // Ensure "Map" is always included in the name
+  // Ensure "Map" is always included in the name, but remove any existing modifier prefix
   const baseName = targetItem.name.includes('Map') ? 'Map' : targetItem.name;
+  const cleanBaseName = baseName.replace(/^(Shiny|Juicy|Glittering|Enriched)\s/, '');
   
   return {
     ...targetItem,
     rarity: newRarity,
-    name: `${newRarity.name} ${newMapName} ${baseName}`.trim(),
+    name: `${newMapName} ${cleanBaseName}`.trim(),
     modifiers: [...(targetItem.modifiers || []), newModifier],
   };
 };
@@ -59,16 +60,16 @@ export const isCraftingApplicable = (craftingItem, targetItem) => {
          targetItem.rarity.name === RARITY.COMMON.name;
 };
 
-export const handleCraftingInteraction = (state, index) => {
+export const handleCraftingInteraction = (state, index, isShiftHeld) => {
   const material = state.craftingItem;
   const targetItem = getItem(index, state);
-  
+
   if (material && targetItem && isCraftingApplicable(material, targetItem)) {
     const requiredAmount = 1;
     const materialCountInventory = countItem(state.inventory, material.id);
     const materialCountPouch = countItem(state.pouch, material.id);
     const totalMaterialCount = materialCountInventory + materialCountPouch;
-    
+
     if (totalMaterialCount >= requiredAmount) {
       let newInventory = [...state.inventory];
       let newPouch = [...state.pouch];
@@ -81,20 +82,24 @@ export const handleCraftingInteraction = (state, index) => {
       
       const upgradedMap = upgradeMap(targetItem);
       
-      return updateStateAfterCrafting(
-        { ...state, inventory: newInventory, pouch: newPouch, craftingItem: null },
-        index,
-        upgradedMap,
-        material
-      );
+      return {
+        ...updateStateAfterCrafting(
+          { ...state, inventory: newInventory, pouch: newPouch },
+          index,
+          upgradedMap,
+          material
+        ),
+        upgradedItem: { ...upgradedMap, index },
+        continueCrafting: isShiftHeld
+      };
     } else {
-      return { ...state, tooltipMessage: `You need 1 ${material.name}` };
+      return { ...state, tooltipMessage: `You need 1 ${material.name}`, continueCrafting: false };
     }
   }
   
   if (material && targetItem && material.id === 'modifying_prism' && targetItem.isMapItem) {
-    return { ...state, tooltipMessage: "This map can't be upgraded further" };
+    return { ...state, tooltipMessage: "This map can't be upgraded further", continueCrafting: false };
   }
   
-  return state;
+  return { ...state, continueCrafting: false };
 };
