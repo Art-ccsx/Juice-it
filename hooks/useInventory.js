@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { MAP_ITEM } from '../constants';
+import { ITEMS, MAP_ITEM } from '../constants';
 import { getItem, setItem, removeItem } from './inventoryHelpers';
 import { handleCtrlClick, handleRightClick, handleLeftClick } from './itemInteractions';
 import { handleCraftingInteraction } from './craftingLogic';
@@ -133,6 +133,31 @@ const useInventory = (gameState, setGameState) => {
     });
   }, []);
 
+  const spawnItem = useCallback((itemId) => {
+    setGameState(prevState => {
+      const itemToSpawn = [...ITEMS, MAP_ITEM].find(item => item.id === itemId);
+      if (!itemToSpawn) return prevState;
+
+      const emptySlot = prevState.inventory.findIndex(slot => slot === null);
+      if (emptySlot === -1) {
+        return {
+          ...prevState,
+          tooltipMessage: "No empty slots in inventory to spawn item!"
+        };
+      }
+
+      const newInventory = [...prevState.inventory];
+      newInventory[emptySlot] = { ...itemToSpawn, count: 1 };
+
+      return {
+        ...prevState,
+        inventory: newInventory,
+        discoveredItems: new Set([...prevState.discoveredItems, itemToSpawn.id]),
+        tooltipMessage: `Spawned 1 ${itemToSpawn.name} into inventory`
+      };
+    });
+  }, []);
+
   return {
     handleItemInteraction,
     addInventorySlot,
@@ -143,6 +168,7 @@ const useInventory = (gameState, setGameState) => {
     sortStorage,
     takeAllFromPouch,
     unlockBoxes,
+    spawnItem,
   };
 };
 

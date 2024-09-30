@@ -1,62 +1,31 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { ITEMS, MAP_ITEM } from '../constants';
-import Image from 'next/image';
+import InventorySlot from './InventorySlot';
 
-const GlossaryItem = ({ item, onMouseEnter, onMouseLeave, onMouseMove }) => (
-  <div 
-    className="glossary-item relative select-none border border-gray-600"
-    onMouseEnter={(e) => onMouseEnter(e, item)}
-    onMouseLeave={onMouseLeave}
-    onMouseMove={(e) => onMouseMove(e, item)}
-    style={{
-      borderColor: item.rarity.color,
-    }}
-  >
-    <div className="inventory-slot-content">
-      <Image
-        src={`/assets/${item.id}.png`}
-        alt={item.name}
-        layout="fill"
-        objectFit="contain"
-        className="inventory-slot-image"
-      />
-    </div>
-  </div>
-);
-
-const Glossary = ({ onMouseEnter, onMouseLeave, onMouseMove, discoveredItems }) => {
-  const [showOnlyDiscovered, setShowOnlyDiscovered] = useState(false);
+const Glossary = ({ discoveredItems, spawnItem, onMouseEnter, onMouseLeave, onMouseMove }) => {
   const allItems = [...ITEMS, MAP_ITEM];
 
-  const filteredItems = showOnlyDiscovered
-    ? allItems.filter(item => discoveredItems.has(item.id))
-    : allItems;
+  const handleItemInteraction = (index) => {
+    const item = allItems[index];
+    if (discoveredItems.has(item.id)) {
+      spawnItem(item.id);
+    }
+  };
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-2">
-        <h3 className="text-xl font-bold">Glossary</h3>
-        <label className="flex items-center">
-          <input
-            type="checkbox"
-            checked={showOnlyDiscovered}
-            onChange={() => setShowOnlyDiscovered(!showOnlyDiscovered)}
-            className="mr-2"
-          />
-          Show Only Discovered
-        </label>
-      </div>
-      <div className="glossary-grid">
-        {filteredItems.map((item) => (
-          <GlossaryItem
-            key={item.id}
-            item={item}
-            onMouseEnter={onMouseEnter}
-            onMouseLeave={onMouseLeave}
-            onMouseMove={onMouseMove}
-          />
-        ))}
-      </div>
+    <div className="flex flex-wrap">
+      {allItems.map((item, index) => (
+        <InventorySlot
+          key={item.id}
+          item={discoveredItems.has(item.id) ? item : { ...item, name: '???', description: 'Not yet discovered' }}
+          index={index}
+          handleItemInteraction={handleItemInteraction}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
+          onMouseMove={onMouseMove}
+          className={`inventory-slot ${discoveredItems.has(item.id) ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
+        />
+      ))}
     </div>
   );
 };

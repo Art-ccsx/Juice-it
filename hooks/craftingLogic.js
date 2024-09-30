@@ -14,10 +14,32 @@ export const upgradeMap = (targetItem) => {
     value: modifierValue,
   };
   
+  // Generate the new map name based on the modifier
+  let newMapName;
+  switch (newModifier.id) {
+    case 'shinies_stack_boost':
+      newMapName = `Shiny`;
+      break;
+    case 'juice_stack_boost':
+      newMapName = `Juicy`;
+      break;
+    case 'total_shinies_boost':
+      newMapName = `Glittering`;
+      break;
+    case 'total_juice_boost':
+      newMapName = `Enriched`;
+      break;
+    default:
+      newMapName = '';
+  }
+  
+  // Ensure "Map" is always included in the name
+  const baseName = targetItem.name.includes('Map') ? 'Map' : targetItem.name;
+  
   return {
     ...targetItem,
     rarity: newRarity,
-    name: `${newRarity.name} ${targetItem.name.split(' ').slice(1).join(' ')}`,
+    name: `${newRarity.name} ${newMapName} ${baseName}`.trim(),
     modifiers: [...(targetItem.modifiers || []), newModifier],
   };
 };
@@ -27,12 +49,14 @@ export const updateStateAfterCrafting = (state, index, upgradedMap, material) =>
   return {
     ...newState,
     craftingItem: null,
-    tooltipMessage: `Successfully upgraded map using ${material.name}`,
+    tooltipMessage: `Successfully upgraded map to ${upgradedMap.name}`,
   };
 };
 
 export const isCraftingApplicable = (craftingItem, targetItem) => {
-  return craftingItem.id === 'modifying_prism' && targetItem.isMapItem;
+  return craftingItem.id === 'modifying_prism' && 
+         targetItem.isMapItem && 
+         targetItem.rarity.name === RARITY.COMMON.name;
 };
 
 export const handleCraftingInteraction = (state, index) => {
@@ -66,6 +90,10 @@ export const handleCraftingInteraction = (state, index) => {
     } else {
       return { ...state, tooltipMessage: `You need 1 ${material.name}` };
     }
+  }
+  
+  if (material && targetItem && material.id === 'modifying_prism' && targetItem.isMapItem) {
+    return { ...state, tooltipMessage: "This map can't be upgraded further" };
   }
   
   return state;

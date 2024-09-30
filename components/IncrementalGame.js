@@ -21,7 +21,7 @@ import useSaveLoad from '../hooks/useSaveLoad';
 const IncrementalGame = () => {
   const { gameState, setGameState, activeTab, setActiveTab, leftActiveTab, setLeftActiveTab } = useGameState();
   const { startExploration, completeExploration, abandonExploration, processLootTick } = useExploration(gameState, setGameState);
-  const { handleItemInteraction, addInventorySlot, addPouchSlot, getMap, getInventoryUpgradeCost, clearStorage, sortStorage, takeAllFromPouch, craftingItem, unlockBoxes } = useInventory(gameState, setGameState);
+  const { handleItemInteraction, addInventorySlot, addPouchSlot, getMap, getInventoryUpgradeCost, clearStorage, sortStorage, takeAllFromPouch, craftingItem, unlockBoxes, spawnItem } = useInventory(gameState, setGameState);
   const { saveGame, loadGame, exportGame, importGame, lastSaveTime, showSaveMessage } = useSaveLoad(gameState, setGameState, activeTab, setActiveTab);
 
   const [tooltipItem, setTooltipItem] = useState(null);
@@ -137,6 +137,10 @@ const IncrementalGame = () => {
     return gameState.inventory.findIndex(item => item === null);
   }, [gameState.inventory]);
 
+  const debugSpawnItem = (item) => {
+    spawnItem(item.id);
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'general':
@@ -165,10 +169,11 @@ const IncrementalGame = () => {
       case 'glossary':
         return (
           <Glossary
+            discoveredItems={gameState.discoveredItems}
+            spawnItem={spawnItem}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             onMouseMove={handleMouseMove}
-            discoveredItems={gameState.discoveredItems}
           />
         );
       case 'settings':
@@ -191,7 +196,7 @@ const IncrementalGame = () => {
                 <button
                   key={item.id}
                   className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-2 rounded text-sm"
-                  onClick={() => spawnItem(item)}
+                  onClick={() => debugSpawnItem(item)}
                 >
                   Spawn {item.name}
                 </button>
@@ -202,25 +207,6 @@ const IncrementalGame = () => {
       default:
         return null;
     }
-  };
-
-  const spawnItem = (item) => {
-    setGameState(prevState => {
-      const emptySlot = prevState.inventory.findIndex(slot => slot === null);
-      if (emptySlot !== -1) {
-        const newInventory = [...prevState.inventory];
-        newInventory[emptySlot] = { ...item, count: 1 };
-        return {
-          ...prevState,
-          inventory: newInventory,
-          discoveredItems: new Set([...prevState.discoveredItems, item.id])
-        };
-      }
-      return {
-        ...prevState,
-        tooltipMessage: "No empty slots in inventory for spawned item!"
-      };
-    });
   };
 
   const renderLeftTabContent = () => {
