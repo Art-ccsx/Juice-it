@@ -16,8 +16,10 @@ const Tooltip = ({ item, position }) => {
         minWidth: '200px', // Minimum width
       }}
     >
-      <p className="font-bold" style={{ color: item.rarity.color }}>{item.name}</p>
-      <p className="text-xs italic" style={{ color: item.rarity.color }}>{item.rarity.name}</p>
+      <p className="font-bold" style={{ color: item.rarity?.color || '#FFFFFF' }}>{item.name}</p>
+      {item.rarity && (
+        <p className="text-xs italic" style={{ color: item.rarity.color }}>{item.rarity.name}</p>
+      )}
       <hr className="my-1 border-gray-600" />
       <p className="text-sm">{item.description}</p>
       {hasAdditionalInfo && <hr className="my-1 border-gray-600" />}

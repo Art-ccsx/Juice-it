@@ -23,10 +23,10 @@ export const upgradeMap = (targetItem) => {
     case 'juice_stack_boost':
       newMapName = `Juicy`;
       break;
-    case 'total_shinies_boost':
+    case 'extra_shinies_drops':
       newMapName = `Glittering`;
       break;
-    case 'total_juice_boost':
+    case 'extra_juice_drops':
       newMapName = `Enriched`;
       break;
     default:

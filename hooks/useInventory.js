@@ -1,9 +1,9 @@
 import { useCallback } from 'react';
-import { ITEMS, MAP_ITEM } from '../constants';
+import { ITEMS, MAP_ITEM, RARITY } from '../constants';
 import { getItem, setItem, removeItem } from './inventoryHelpers';
 import { handleCtrlClick, handleRightClick, handleLeftClick } from './itemInteractions';
 import { handleCraftingInteraction } from './craftingLogic';
-import { getInventoryUpgradeCost, addInventorySlot, addPouchSlot, unlockBoxes } from './inventoryUpgrades';
+import { getInventoryUpgradeCost, addInventorySlot as addInventorySlotUpgrade, addPouchSlot as addPouchSlotUpgrade, unlockBoxes } from './inventoryUpgrades';
 
 const useInventory = (gameState, setGameState) => {
   const handleItemInteraction = useCallback((index, isCtrlClick, isRightClick, mouseEvent) => {
@@ -157,6 +157,14 @@ const useInventory = (gameState, setGameState) => {
       };
     });
   }, []);
+
+  const addInventorySlot = useCallback(() => {
+    addInventorySlotUpgrade(gameState, setGameState);
+  }, [gameState, setGameState]);
+
+  const addPouchSlot = useCallback(() => {
+    addPouchSlotUpgrade(gameState, setGameState);
+  }, [gameState, setGameState]);
 
   return {
     handleItemInteraction,

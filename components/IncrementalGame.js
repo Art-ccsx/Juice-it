@@ -354,10 +354,9 @@ const IncrementalGame = () => {
                   <span className="ml-2 text-white">Autorun</span>
                 </label>
                 <button
-                  className={`bg-game-button hover:bg-game-button-hover text-white font-bold py-2 px-4 rounded ${!gameState.activeMap ? 'opacity-50' : ''}`}
+                  className={`bg-game-button hover:bg-game-button-hover text-white font-bold py-2 px-4 rounded ${!gameState.activeMap ? 'opacity-50 cursor-not-allowed' : ''}`}
                   onClick={startExploration}
                   disabled={!gameState.activeMap}
-                  style={{ cursor: gameState.activeMap ? 'pointer' : 'default' }}
                 >
                   Run it!
                 </button>

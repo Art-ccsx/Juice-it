@@ -30,7 +30,7 @@ const InventorySlot = ({ item, index, handleItemInteraction, onMouseEnter, onMou
       onMouseLeave={onMouseLeave}
       onMouseMove={(e) => item && onMouseMove(e, item)}
       style={{
-        borderColor: item ? item.rarity.color : undefined,
+        borderColor: item && item.rarity ? item.rarity.color : undefined,
       }}
     >
       {item && (
@@ -52,6 +52,6 @@ const InventorySlot = ({ item, index, handleItemInteraction, onMouseEnter, onMou
       )}
     </div>
   );
-};
+}
 
 export default InventorySlot;

@@ -9,10 +9,10 @@ export const RARITY = {
   COMMON: { name: 'Common', color: '#FFFFFF' },
 };
 
-export const ENRICHING_JUICE_DROP_CHANCE = 0.05;
-export const MODIFYING_PRISM_DROP_CHANCE = 0.01;
-export const SHINIES_DROP_CHANCE = 0.1;
-export const BOX_DROP_CHANCE = 0.01; // Changed from previous value to 1%
+export const ENRICHING_JUICE_DROP_CHANCE = 0.005; // Changed from 0.05
+export const MODIFYING_PRISM_DROP_CHANCE = 0.001; // Changed from 0.01
+export const SHINIES_DROP_CHANCE = 0.01; // Changed from 0.1
+export const BOX_DROP_CHANCE = 0.001; // Changed from 0.01
 
 export const ITEMS = [
   { 
@@ -95,16 +95,16 @@ export const MAP_MODIFIERS = [
     maxValue: 1,
   },
   {
-    id: 'total_shinies_boost',
-    name: 'Total Shinies Boost',
-    description: 'Adds {x} total additional shinies found over the course of the entire exploration',
+    id: 'extra_shinies_drops',
+    name: 'Extra Shinies Drops',
+    description: 'Adds {x} additional shinies drops over the course of the entire exploration',
     minValue: 2,
     maxValue: 4,
   },
   {
-    id: 'total_juice_boost',
-    name: 'Total Enriching Juice Boost',
-    description: 'Adds {x} total additional juice found over the course of the entire exploration',
+    id: 'extra_juice_drops',
+    name: 'Extra Enriching Juice Drops',
+    description: 'Adds {x} additional enriching juice drops over the course of the entire exploration',
     minValue: 1,
     maxValue: 3,
   },

@@ -13,7 +13,8 @@ const ItemParticles = ({ item }) => {
     for (let i = 0; i < particleCount; i++) {
       const particle = document.createElement('div');
       particle.className = 'absolute w-1 h-1 rounded-full';
-      particle.style.backgroundColor = item.rarity.color;
+      // Use a default color if item.rarity or item.rarity.color is undefined
+      particle.style.backgroundColor = item.rarity?.color || '#FFFFFF';
       particle.style.left = `${Math.random() * 100}%`;
       particle.style.top = `${Math.random() * 100}%`;
       particle.style.animation = `particle-fade 1s ease-out forwards`;

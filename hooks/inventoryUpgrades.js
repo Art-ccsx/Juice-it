@@ -6,41 +6,53 @@ export const getInventoryUpgradeCost = (currentUpgrades) => {
 
 export const addInventorySlot = (state, setGameState) => {
   const upgradeCost = getInventoryUpgradeCost(state.inventoryUpgrades);
-  const shiniesCount = state.inventory.reduce((sum, item) => sum + (item && item.id === 'shinies' ? item.count : 0), 0);
+  const shiniesCount = state.inventory ? state.inventory.reduce((sum, item) => sum + (item && item.id === 'shinies' ? item.count : 0), 0) : 0;
 
   if (shiniesCount >= upgradeCost) {
-    const newInventory = state.inventory.map(item => {
+    const newInventory = state.inventory ? state.inventory.map(item => {
       if (item && item.id === 'shinies') {
         return { ...item, count: item.count - upgradeCost };
       }
       return item;
-    });
+    }) : [];
 
     setGameState({
       ...state,
       inventory: [...newInventory, null],
       inventoryUpgrades: state.inventoryUpgrades + 1,
     });
+  } else {
+    // Optionally, you can set a message in the state to inform the user they don't have enough shinies
+    setGameState({
+      ...state,
+      tooltipMessage: `Not enough shinies. You need ${upgradeCost} shinies to upgrade.`
+    });
   }
 };
 
 export const addPouchSlot = (state, setGameState) => {
   const upgradeCost = getInventoryUpgradeCost(state.pouchUpgrades);
-  const shiniesCount = state.inventory.reduce((sum, item) => sum + (item && item.id === 'shinies' ? item.count : 0), 0);
+  const shiniesCount = state.inventory ? state.inventory.reduce((sum, item) => sum + (item && item.id === 'shinies' ? item.count : 0), 0) : 0;
 
   if (shiniesCount >= upgradeCost) {
-    const newInventory = state.inventory.map(item => {
+    const newInventory = state.inventory ? state.inventory.map(item => {
       if (item && item.id === 'shinies') {
         return { ...item, count: item.count - upgradeCost };
       }
       return item;
-    });
+    }) : [];
 
     setGameState({
       ...state,
       inventory: newInventory,
-      pouch: [...state.pouch, null],
+      pouch: [...(state.pouch || []), null],
       pouchUpgrades: state.pouchUpgrades + 1,
+    });
+  } else {
+    // Optionally, you can set a message in the state to inform the user they don't have enough shinies
+    setGameState({
+      ...state,
+      tooltipMessage: `Not enough shinies. You need ${upgradeCost} shinies to upgrade.`
     });
   }
 };

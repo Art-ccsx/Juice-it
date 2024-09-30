@@ -1,159 +1,123 @@
-import { useCallback, useEffect } from 'react';
-import { ITEMS, ENRICHING_JUICE_DROP_CHANCE, MODIFYING_PRISM_DROP_CHANCE, SHINIES_DROP_CHANCE, BOX_DROP_CHANCE } from '../constants';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import useLootSystem from './useLootSystem';
+
+const TICKS_PER_EXPLORATION = 100;
+const TICK_INTERVAL = 100; // milliseconds
 
 const useExploration = (gameState, setGameState) => {
+  const { initializeExploration, processLootTick, resetLootPlan } = useLootSystem(gameState.activeMap);
+  const [currentTick, setCurrentTick] = useState(0);
+  const explorationTimerRef = useRef(null);
+
   const startExploration = useCallback(() => {
     if (!gameState.exploring && gameState.activeMap) {
-      setGameState((prevState) => ({
+      console.log("Starting exploration");
+      setGameState(prevState => ({
         ...prevState,
         exploring: true,
         exploreProgress: 0,
         countdown: prevState.exploreTime,
-        lootTicks: 0,
-        // Don't set activeMap to null here
       }));
+      initializeExploration();
+      setCurrentTick(0);
     }
-  }, [gameState.exploring, gameState.activeMap, setGameState]);
+  }, [gameState.exploring, gameState.activeMap, gameState.exploreTime, setGameState, initializeExploration]);
 
-  const processLootTick = useCallback(() => {
-    const rand = Math.random();
-    let discoveredItem = null;
-    let additionalShinies = 0;
-    let additionalJuice = 0;
-
-    // Apply modifiers if there's an active map
-    if (gameState.activeMap && gameState.activeMap.modifiers) {
-      gameState.activeMap.modifiers.forEach(modifier => {
-        switch (modifier.id) {
-          case 'shinies_stack_boost':
-            if (rand < SHINIES_DROP_CHANCE) {
-              additionalShinies += modifier.value;
-            }
-            break;
-          case 'juice_stack_boost':
-            if (rand < ENRICHING_JUICE_DROP_CHANCE) {
-              additionalJuice += modifier.value;
-            }
-            break;
-          case 'total_shinies_boost':
-            additionalShinies += modifier.value;
-            break;
-          case 'total_juice_boost':
-            additionalJuice += modifier.value;
-            break;
-        }
-      });
+  const stopExploration = useCallback((isCompleted = false) => {
+    console.log(isCompleted ? "Completing exploration" : "Abandoning exploration");
+    if (explorationTimerRef.current) {
+      clearInterval(explorationTimerRef.current);
+      explorationTimerRef.current = null;
     }
-
-    if (rand < ENRICHING_JUICE_DROP_CHANCE) {
-      discoveredItem = { ...ITEMS.find(item => item.id === 'enriching_juice'), count: 1 + additionalJuice };
-    } else if (rand < ENRICHING_JUICE_DROP_CHANCE + MODIFYING_PRISM_DROP_CHANCE) {
-      discoveredItem = ITEMS.find(item => item.id === 'modifying_prism');
-    } else if (rand < ENRICHING_JUICE_DROP_CHANCE + MODIFYING_PRISM_DROP_CHANCE + SHINIES_DROP_CHANCE) {
-      discoveredItem = { ...ITEMS.find(item => item.id === 'shinies'), count: 1 + additionalShinies };
-    } else if (gameState.boxesUnlocked && rand < ENRICHING_JUICE_DROP_CHANCE + MODIFYING_PRISM_DROP_CHANCE + SHINIES_DROP_CHANCE + BOX_DROP_CHANCE) {
-      discoveredItem = ITEMS.find(item => item.id === 'box');
-    }
-
-    if (discoveredItem) {
-      setGameState((prevState) => {
-        const newPouch = [...prevState.pouch];
-        let itemAdded = false;
-
-        // Try to add to existing stack
-        for (let i = 0; i < newPouch.length; i++) {
-          if (newPouch[i] && newPouch[i].id === discoveredItem.id && newPouch[i].stackable) {
-            if (newPouch[i].count < discoveredItem.maxStack) {
-              newPouch[i] = {
-                ...newPouch[i],
-                count: Math.min(newPouch[i].count + discoveredItem.count, discoveredItem.maxStack)
-              };
-              itemAdded = true;
-              break;
-            }
-          }
-        }
-
-        // If not added to existing stack, try to add to empty slot
-        if (!itemAdded) {
-          const emptySlot = newPouch.findIndex(slot => slot === null);
-          if (emptySlot !== -1) {
-            newPouch[emptySlot] = discoveredItem;
-            itemAdded = true;
-          }
-        }
-
-        if (itemAdded) {
-          return {
-            ...prevState,
-            pouch: newPouch,
-            discoveredItems: new Set([...prevState.discoveredItems, discoveredItem.id])
-          };
-        }
-        return prevState;
-      });
-    }
-  }, [gameState.activeMap, gameState.boxesUnlocked, setGameState]);
-
-  const completeExploration = useCallback(() => {
-    setGameState((prevState) => ({
+    setGameState(prevState => ({
       ...prevState,
       exploring: false,
       exploreProgress: 0,
       countdown: 0,
-      lootTicks: 0,
-      activeMap: null, // Remove the map when exploration is complete
+      activeMap: null, // Always remove the active map when stopping exploration
     }));
-  }, [setGameState]);
+    resetLootPlan();
+    setCurrentTick(0);
+  }, [setGameState, resetLootPlan]);
 
-  const abandonExploration = useCallback(() => {
-    setGameState((prevState) => ({
-      ...prevState,
-      exploring: false,
-      exploreProgress: 0,
-      countdown: 0,
-      lootTicks: 0,
-      activeMap: null, // Remove the map when exploration is abandoned
-    }));
-  }, [setGameState]);
+  const completeExploration = useCallback(() => stopExploration(true), [stopExploration]);
+  const abandonExploration = useCallback(() => stopExploration(false), [stopExploration]);
 
   useEffect(() => {
-    let timer;
-    let lootTimer;
-    if (gameState.exploring) {
-      const startTime = Date.now();
-      const duration = gameState.exploreTime * 1000; // Convert to milliseconds
-
-      timer = setInterval(() => {
-        const elapsedTime = Date.now() - startTime;
-        const progress = Math.min((elapsedTime / duration) * 100, 100);
-        const remainingTime = Math.max((duration - elapsedTime) / 1000, 0);
-
-        setGameState((prevState) => ({
-          ...prevState,
-          exploreProgress: progress,
-          countdown: remainingTime,
-        }));
-
-        if (progress >= 100) {
-          clearInterval(timer);
-          clearInterval(lootTimer);
-          completeExploration();
-        }
-      }, 100); // Update every 100ms for smooth progress
-
-      lootTimer = setInterval(() => {
-        processLootTick();
-      }, 1000); // Process loot every 1 second
+    if (gameState.exploring && !explorationTimerRef.current) {
+      console.log("Setting up exploration timer");
+      explorationTimerRef.current = setInterval(() => {
+        setCurrentTick(prevTick => {
+          const newTick = prevTick + 1;
+          if (newTick >= TICKS_PER_EXPLORATION) {
+            completeExploration();
+            return 0;
+          }
+          return newTick;
+        });
+      }, TICK_INTERVAL);
     }
 
     return () => {
-      clearInterval(timer);
-      clearInterval(lootTimer);
+      if (explorationTimerRef.current) {
+        console.log("Cleaning up exploration timer");
+        clearInterval(explorationTimerRef.current);
+        explorationTimerRef.current = null;
+      }
     };
-  }, [gameState.exploring, gameState.exploreTime, setGameState, completeExploration, processLootTick]);
+  }, [gameState.exploring, completeExploration]);
 
-  return { startExploration, completeExploration, abandonExploration, processLootTick };
+  useEffect(() => {
+    if (gameState.exploring) {
+      const loot = processLootTick(currentTick);
+      setGameState(prevState => {
+        const newPouch = [...prevState.pouch];
+        loot.forEach(lootItem => {
+          let remainingCount = lootItem.count;
+          
+          // Try to add to existing stacks first
+          for (let i = 0; i < newPouch.length && remainingCount > 0; i++) {
+            if (newPouch[i] && newPouch[i].id === lootItem.id && newPouch[i].count < newPouch[i].maxStack) {
+              const spaceInStack = newPouch[i].maxStack - newPouch[i].count;
+              const amountToAdd = Math.min(spaceInStack, remainingCount);
+              newPouch[i] = {
+                ...newPouch[i],
+                count: newPouch[i].count + amountToAdd
+              };
+              remainingCount -= amountToAdd;
+            }
+          }
+          
+          // If there's still some left, find empty slots
+          while (remainingCount > 0) {
+            const emptySlot = newPouch.findIndex(slot => slot === null);
+            if (emptySlot !== -1) {
+              const amountToAdd = Math.min(lootItem.maxStack, remainingCount);
+              newPouch[emptySlot] = { ...lootItem, count: amountToAdd };
+              remainingCount -= amountToAdd;
+            } else {
+              // No more space in pouch
+              console.log(`Pouch is full. Dropped ${remainingCount} ${lootItem.name}`);
+              break;
+            }
+          }
+        });
+
+        return {
+          ...prevState,
+          exploreProgress: (currentTick / TICKS_PER_EXPLORATION) * 100,
+          countdown: Math.max(0, prevState.countdown - (TICK_INTERVAL / 1000)),
+          pouch: newPouch,
+        };
+      });
+    }
+  }, [gameState.exploring, currentTick, processLootTick, setGameState]);
+
+  return {
+    startExploration,
+    completeExploration,
+    abandonExploration,
+  };
 };
 
 export default useExploration;
