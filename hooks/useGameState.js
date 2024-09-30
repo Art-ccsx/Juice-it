@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { INITIAL_INVENTORY_SIZE, INITIAL_POUCH_SIZE } from '../constants';
+import { INITIAL_INVENTORY_SIZE, INITIAL_POUCH_SIZE, INITIAL_BOXES_INVENTORY_SIZE, BOX_DROPS_INVENTORY_SIZE } from '../constants';
 
 const useGameState = () => {
   const [gameState, setGameState] = useState({
@@ -18,7 +18,8 @@ const useGameState = () => {
     craftingItem: null,
     tooltipMessage: null,
     boxesUnlocked: false,
-    boxesInventory: Array(10).fill(null),
+    boxesInventory: Array(INITIAL_BOXES_INVENTORY_SIZE).fill(null),
+    boxDrops: Array(BOX_DROPS_INVENTORY_SIZE).fill(null),
   });
 
   const [activeTab, setActiveTab] = useState('general');

@@ -13,6 +13,8 @@ export const ENRICHING_JUICE_DROP_CHANCE = 0.005; // Changed from 0.05
 export const MODIFYING_PRISM_DROP_CHANCE = 0.001; // Changed from 0.01
 export const SHINIES_DROP_CHANCE = 0.01; // Changed from 0.1
 export const BOX_DROP_CHANCE = 0.001; // Changed from 0.01
+export const SIMPLE_LOCKBOX_DROP_CHANCE = 0.0005; // Half as rare as a box
+export const SIMPLE_KEY_DROP_CHANCE = 0.0005; // Half as rare as a box
 
 export const ITEMS = [
   { 
@@ -62,6 +64,30 @@ export const ITEMS = [
     dropChance: BOX_DROP_CHANCE,
     usable: false,
   },
+  {
+    id: 'simple_lockbox',
+    name: 'Simple Lockbox',
+    rarity: RARITY.UNCOMMON,
+    isMapItem: false,
+    description: 'A locked box that requires a simple key to open.',
+    image: '/assets/simple_lockbox.png',
+    stackable: false,
+    maxStack: 1,
+    dropChance: SIMPLE_LOCKBOX_DROP_CHANCE,
+    usable: false,
+  },
+  {
+    id: 'simple_key',
+    name: 'Simple Key',
+    rarity: RARITY.UNCOMMON,
+    isMapItem: false,
+    description: 'A key that can open simple lockboxes.',
+    image: '/assets/simple_key.png',
+    stackable: true,
+    maxStack: 999,
+    dropChance: SIMPLE_KEY_DROP_CHANCE,
+    usable: false,
+  },
 ];
 
 export const MAP_ITEM = { 
@@ -78,6 +104,8 @@ export const MAP_ITEM = {
 };
 
 export const INITIAL_BOXES_INVENTORY_SIZE = 10;
+
+export const BOX_DROPS_INVENTORY_SIZE = 50;
 
 export const MAP_MODIFIERS = [
   {

@@ -4,8 +4,11 @@ import { getItem, setItem, removeItem } from './inventoryHelpers';
 import { handleCtrlClick, handleRightClick, handleLeftClick } from './itemInteractions';
 import { handleCraftingInteraction } from './craftingLogic';
 import { getInventoryUpgradeCost, addInventorySlot as addInventorySlotUpgrade, addPouchSlot as addPouchSlotUpgrade, unlockBoxes } from './inventoryUpgrades';
+import useBoxSystem from './useBoxSystem';
 
 const useInventory = (gameState, setGameState) => {
+  const { openBox, takeAllFromBoxDrops, clearBoxDrops } = useBoxSystem(gameState, setGameState);
+
   const handleItemInteraction = useCallback((index, isCtrlClick, isRightClick, mouseEvent) => {
     setGameState(prevState => {
       if (prevState.craftingItem && prevState.heldItem) return prevState;
@@ -17,12 +20,32 @@ const useInventory = (gameState, setGameState) => {
       } else if (isRightClick) {
         newState = handleRightClick(newState, index);
       } else if (!isRightClick && mouseEvent === 'click') {
-        newState = handleLeftClick(newState, index, handleCraftingInteraction);
+        if (typeof index === 'string') {
+          if (index.startsWith('boxes_')) {
+            const boxIndex = parseInt(index.split('_')[1]);
+            if (newState.boxesInventory[boxIndex]) {
+              openBox(boxIndex);
+            } else if (newState.heldItem && (newState.heldItem.id === 'box' || newState.heldItem.id === 'simple_lockbox' || newState.heldItem.id === 'simple_key')) {
+              // Allow placing boxes, lockboxes, and keys in the boxes inventory
+              newState = handleLeftClick(newState, index, handleCraftingInteraction);
+            } else {
+              // If trying to place a non-allowed item, don't do anything
+              return newState;
+            }
+          } else if (index.startsWith('boxDrops_')) {
+            // Prevent dropping items into box drops inventory
+            return newState;
+          } else {
+            newState = handleLeftClick(newState, index, handleCraftingInteraction);
+          }
+        } else {
+          newState = handleLeftClick(newState, index, handleCraftingInteraction);
+        }
       }
 
       return newState;
     });
-  }, []);
+  }, [openBox]);
 
   const getMap = useCallback(() => {
     setGameState(prevState => {
@@ -82,7 +105,7 @@ const useInventory = (gameState, setGameState) => {
         if (pouchItem) {
           let remainingCount = pouchItem.count || 1;
 
-          if (pouchItem.id === 'box' && prevState.boxesUnlocked) {
+          if ((pouchItem.id === 'box' || pouchItem.id === 'simple_lockbox' || pouchItem.id === 'simple_key') && prevState.boxesUnlocked) {
             const boxesIndex = newBoxesInventory.findIndex(slot => slot === null);
             if (boxesIndex !== -1) {
               newBoxesInventory[boxesIndex] = pouchItem;
@@ -138,23 +161,42 @@ const useInventory = (gameState, setGameState) => {
       const itemToSpawn = [...ITEMS, MAP_ITEM].find(item => item.id === itemId);
       if (!itemToSpawn) return prevState;
 
-      const emptySlot = prevState.inventory.findIndex(slot => slot === null);
-      if (emptySlot === -1) {
+      if ((itemToSpawn.id === 'box' || itemToSpawn.id === 'simple_lockbox' || itemToSpawn.id === 'simple_key') && prevState.boxesUnlocked) {
+        const emptyBoxSlot = prevState.boxesInventory.findIndex(slot => slot === null);
+        if (emptyBoxSlot !== -1) {
+          const newBoxesInventory = [...prevState.boxesInventory];
+          newBoxesInventory[emptyBoxSlot] = { ...itemToSpawn, count: 1 };
+          return {
+            ...prevState,
+            boxesInventory: newBoxesInventory,
+            discoveredItems: new Set([...prevState.discoveredItems, itemToSpawn.id]),
+            tooltipMessage: `Spawned 1 ${itemToSpawn.name} into boxes and keys inventory`
+          };
+        } else {
+          return {
+            ...prevState,
+            tooltipMessage: "No empty slots in boxes and keys inventory to spawn item!"
+          };
+        }
+      } else {
+        const emptySlot = prevState.inventory.findIndex(slot => slot === null);
+        if (emptySlot === -1) {
+          return {
+            ...prevState,
+            tooltipMessage: "No empty slots in inventory to spawn item!"
+          };
+        }
+
+        const newInventory = [...prevState.inventory];
+        newInventory[emptySlot] = { ...itemToSpawn, count: 1 };
+
         return {
           ...prevState,
-          tooltipMessage: "No empty slots in inventory to spawn item!"
+          inventory: newInventory,
+          discoveredItems: new Set([...prevState.discoveredItems, itemToSpawn.id]),
+          tooltipMessage: `Spawned 1 ${itemToSpawn.name} into inventory`
         };
       }
-
-      const newInventory = [...prevState.inventory];
-      newInventory[emptySlot] = { ...itemToSpawn, count: 1 };
-
-      return {
-        ...prevState,
-        inventory: newInventory,
-        discoveredItems: new Set([...prevState.discoveredItems, itemToSpawn.id]),
-        tooltipMessage: `Spawned 1 ${itemToSpawn.name} into inventory`
-      };
     });
   }, []);
 
@@ -177,6 +219,9 @@ const useInventory = (gameState, setGameState) => {
     takeAllFromPouch,
     unlockBoxes,
     spawnItem,
+    openBox,
+    takeAllFromBoxDrops,
+    clearBoxDrops,
   };
 };
 

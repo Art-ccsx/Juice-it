@@ -12,17 +12,20 @@ import Glossary from './Glossary';
 import Settings from './Settings';
 import InventorySlot from './InventorySlot';
 import Image from 'next/image';
-import { ITEMS, MAP_ITEM, INITIAL_INVENTORY_SIZE, INITIAL_POUCH_SIZE, INITIAL_BOXES_INVENTORY_SIZE } from '../constants';
+import { ITEMS, MAP_ITEM, INITIAL_INVENTORY_SIZE, INITIAL_POUCH_SIZE, INITIAL_BOXES_INVENTORY_SIZE, BOX_DROPS_INVENTORY_SIZE } from '../constants';
 import useGameState from '../hooks/useGameState';
 import useExploration from '../hooks/useExploration';
 import useInventory from '../hooks/useInventory';
 import useSaveLoad from '../hooks/useSaveLoad';
+import useBoxSystem from '../hooks/useBoxSystem';
+import ItemParticles from './ItemParticles';
 
 const IncrementalGame = () => {
   const { gameState, setGameState, activeTab, setActiveTab, leftActiveTab, setLeftActiveTab } = useGameState();
   const { startExploration, completeExploration, abandonExploration, processLootTick } = useExploration(gameState, setGameState);
-  const { handleItemInteraction, addInventorySlot, addPouchSlot, getMap, getInventoryUpgradeCost, clearStorage, sortStorage, takeAllFromPouch, craftingItem, unlockBoxes, spawnItem } = useInventory(gameState, setGameState);
+  const { handleItemInteraction, addInventorySlot, addPouchSlot, getMap, getInventoryUpgradeCost, clearStorage, sortStorage, takeAllFromPouch, craftingItem, unlockBoxes, spawnItem, openBox, takeAllFromBoxDrops, clearBoxDrops } = useInventory(gameState, setGameState);
   const { saveGame, loadGame, exportGame, importGame, lastSaveTime, showSaveMessage } = useSaveLoad(gameState, setGameState, activeTab, setActiveTab);
+  const { updatedBoxDrops, setUpdatedBoxDrops } = useBoxSystem(gameState, setGameState);
 
   const [tooltipItem, setTooltipItem] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
@@ -141,6 +144,14 @@ const IncrementalGame = () => {
     spawnItem(item.id);
   };
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setUpdatedBoxDrops({});
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [updatedBoxDrops, setUpdatedBoxDrops]);
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'general':
@@ -223,8 +234,8 @@ const IncrementalGame = () => {
       case 'boxes':
         return (
           <div>
-            <h3 className="text-xl font-bold mb-2">Boxes</h3>
-            <div className="flex flex-wrap">
+            <h3 className="text-xl font-bold mb-2">Boxes and Keys</h3>
+            <div className="flex flex-wrap mb-4">
               {gameState.boxesInventory.map((item, index) => (
                 <InventorySlot
                   key={index}
@@ -234,9 +245,42 @@ const IncrementalGame = () => {
                   onMouseEnter={handleMouseEnter}
                   onMouseLeave={handleMouseLeave}
                   onMouseMove={handleMouseMove}
-                  className="inventory-slot"
+                  className="inventory-slot w-8 h-8"
                 />
               ))}
+            </div>
+            <h3 className="text-xl font-bold mb-2">Box Drops</h3>
+            <div className="flex flex-wrap mb-2">
+              {gameState.boxDrops.map((item, index) => (
+                <div key={index} className="relative">
+                  <InventorySlot
+                    item={item}
+                    index={`boxDrops_${index}`}
+                    handleItemInteraction={handleItemInteraction}
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
+                    onMouseMove={handleMouseMove}
+                    className="inventory-slot w-8 h-8"
+                  />
+                  {updatedBoxDrops[index] && (
+                    <ItemParticles key={`particle_${index}`} item={updatedBoxDrops[index]} />
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="flex space-x-2">
+              <button 
+                onClick={takeAllFromBoxDrops}
+                className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+              >
+                Take All from Box Drops
+              </button>
+              <button 
+                onClick={clearBoxDrops}
+                className="mt-2 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+              >
+                Clear Box Drops
+              </button>
             </div>
           </div>
         );
