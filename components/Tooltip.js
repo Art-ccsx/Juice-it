@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 
 const Tooltip = ({ item, position }) => {
   if (!item) return null;
@@ -34,9 +35,23 @@ const Tooltip = ({ item, position }) => {
           <hr className="my-1 border-gray-600" />
           <p className="text-sm font-bold">Modifiers:</p>
           {item.modifiers.map((modifier, index) => (
-            <p key={index} className="text-xs">
-              {modifier.description.replace('{x}', modifier.value)}
-            </p>
+            <div key={index} className="flex items-center my-1">
+              <div className="relative w-6 h-6">
+                <Image src={modifier.icon} alt={modifier.name} layout="fill" objectFit="contain" />
+                <div className="absolute top-0 right-0 text-xs font-bold" style={{
+                  textShadow: '1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000',
+                  fontSize: '0.6rem',
+                }}>
+                  +{modifier.value}
+                </div>
+              </div>
+              <div className="w-6 h-6">
+                <Image src={modifier.itemIcon} alt={modifier.name} width={24} height={24} />
+              </div>
+              <p className="text-xs ml-1">
+                {modifier.description.replace('{x}', modifier.value)}
+              </p>
+            </div>
           ))}
         </>
       )}

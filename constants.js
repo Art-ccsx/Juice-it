@@ -107,6 +107,16 @@ export const INITIAL_BOXES_INVENTORY_SIZE = 10;
 
 export const BOX_DROPS_INVENTORY_SIZE = 50;
 
+export const MODIFIER_ICONS = {
+  stack_boost: '/assets/stack_symbol.png',
+  extra_drops: '/assets/extra_drop_symbol.png',
+};
+
+export const ITEM_ICONS = {
+  shinies: '/assets/shinies.png',
+  enriching_juice: '/assets/enriching_juice.png',
+};
+
 export const MAP_MODIFIERS = [
   {
     id: 'shinies_stack_boost',
@@ -114,6 +124,8 @@ export const MAP_MODIFIERS = [
     description: 'Adds {x} to shinies stacks found over the course of the entire exploration',
     minValue: 1,
     maxValue: 2,
+    icon: MODIFIER_ICONS.stack_boost,
+    itemIcon: ITEM_ICONS.shinies,
   },
   {
     id: 'juice_stack_boost',
@@ -121,6 +133,8 @@ export const MAP_MODIFIERS = [
     description: 'Adds {x} to enriching juice stacks found over the course of the entire exploration',
     minValue: 1,
     maxValue: 1,
+    icon: MODIFIER_ICONS.stack_boost,
+    itemIcon: ITEM_ICONS.enriching_juice,
   },
   {
     id: 'extra_shinies_drops',
@@ -128,6 +142,8 @@ export const MAP_MODIFIERS = [
     description: 'Adds {x} additional shinies drops over the course of the entire exploration',
     minValue: 2,
     maxValue: 4,
+    icon: MODIFIER_ICONS.extra_drops,
+    itemIcon: ITEM_ICONS.shinies,
   },
   {
     id: 'extra_juice_drops',
@@ -135,5 +151,7 @@ export const MAP_MODIFIERS = [
     description: 'Adds {x} additional enriching juice drops over the course of the entire exploration',
     minValue: 1,
     maxValue: 3,
+    icon: MODIFIER_ICONS.extra_drops,
+    itemIcon: ITEM_ICONS.enriching_juice,
   },
 ];
