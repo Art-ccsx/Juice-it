@@ -6,7 +6,7 @@ const useBoxSystem = (gameState, setGameState) => {
   const [updatedBoxDrops, setUpdatedBoxDrops] = useState({});
   const processingRef = useRef(false);
 
-  const processBoxOpen = useCallback((boxIndex, keys = []) => {
+  const processBoxOpen = useCallback((boxIndex) => {
     if (processingRef.current) return;
     processingRef.current = true;
 
@@ -16,15 +16,19 @@ const useBoxSystem = (gameState, setGameState) => {
       const newUpdatedBoxDrops = {};
       
       const box = newBoxesInventory[boxIndex];
+      console.log('Opening box:', box);
       if (!box) {
+        console.log('No box found at index:', boxIndex);
         processingRef.current = false;
         return prevState;
       }
       newBoxesInventory[boxIndex] = null;
 
-      const loot = openBoxLoot(box, keys) || [];
+      const loot = openBoxLoot(box);
+      console.log('Loot generated:', loot);
 
       if (loot.length === 0) {
+        console.log('Box was empty');
         processingRef.current = false;
         return {
           ...prevState,
@@ -33,23 +37,19 @@ const useBoxSystem = (gameState, setGameState) => {
         };
       }
 
-      loot.forEach(item => {
-        if (item.id !== 'box') {
-          const existingItemIndex = newBoxDrops.findIndex(slot => slot && slot.id === item.id);
-          if (existingItemIndex !== -1) {
-            const existingItem = newBoxDrops[existingItemIndex];
-            const newCount = Math.min(existingItem.count + item.count, existingItem.maxStack);
-            newBoxDrops[existingItemIndex] = { ...existingItem, count: newCount };
-            newUpdatedBoxDrops[existingItemIndex] = newBoxDrops[existingItemIndex];
-          } else {
-            const emptySlot = newBoxDrops.findIndex(slot => slot === null);
-            if (emptySlot !== -1) {
-              newBoxDrops[emptySlot] = item;
-              newUpdatedBoxDrops[emptySlot] = item;
-            }
-          }
+      loot.forEach((item, index) => {
+        console.log(`Processing loot item ${index}:`, item);
+        const emptyDropSlot = newBoxDrops.findIndex(slot => slot === null);
+        if (emptyDropSlot !== -1) {
+          console.log(`Adding ${item.id} to box drops at index:`, emptyDropSlot);
+          newBoxDrops[emptyDropSlot] = item;
+          newUpdatedBoxDrops[emptyDropSlot] = item;
+        } else {
+          console.log(`No empty slot in box drops, ${item.id} is lost`);
         }
       });
+
+      console.log('New box drops before sorting:', newBoxDrops);
 
       const sortedBoxDrops = newBoxDrops
         .filter(item => item !== null)
@@ -65,44 +65,26 @@ const useBoxSystem = (gameState, setGameState) => {
         sortedBoxDrops.push(null);
       }
 
+      console.log('Sorted box drops:', sortedBoxDrops);
+      console.log('Updated boxes inventory:', newBoxesInventory);
+      console.log('Updated box drops:', sortedBoxDrops);
+      console.log('New updated box drops:', newUpdatedBoxDrops);
+
       setUpdatedBoxDrops(newUpdatedBoxDrops);
       processingRef.current = false;
 
-      return {
+      const finalState = {
         ...prevState,
         boxesInventory: newBoxesInventory,
         boxDrops: sortedBoxDrops,
         tooltipMessage: `Opened a box and received ${loot.length} items!`
       };
+
+      console.log('Final state update:', finalState);
+
+      return finalState;
     });
   }, [setGameState]);
-
-  const openBox = useCallback((index) => {
-    if (!processingRef.current) {
-      const box = gameState.boxesInventory[index];
-      if (!box) {
-        setGameState(prevState => ({
-          ...prevState,
-          tooltipMessage: "Invalid box"
-        }));
-        return;
-      }
-      if (box.id === 'simple_lockbox') {
-        const keyIndex = gameState.boxesInventory.findIndex(item => item && item.id === 'simple_key');
-        if (keyIndex === -1) {
-          setGameState(prevState => ({
-            ...prevState,
-            tooltipMessage: "You need a simple key to open this lockbox!"
-          }));
-          return;
-        }
-        const key = gameState.boxesInventory[keyIndex];
-        processBoxOpen(index, [key]);
-      } else {
-        processBoxOpen(index);
-      }
-    }
-  }, [gameState.boxesInventory, processBoxOpen]);
 
   const useKeyOnLockbox = useCallback((keyIndex, lockboxIndex) => {
     console.log('useKeyOnLockbox called with:', { keyIndex, lockboxIndex });
@@ -123,46 +105,34 @@ const useBoxSystem = (gameState, setGameState) => {
 
       console.log('Valid key and lockbox, proceeding to open');
 
-      // Process the box opening with the key
       const loot = openBoxLoot(lockbox, [key]) || [];
       console.log('Loot generated:', loot);
 
-      // Remove one key from the stack or remove the key if it's the last one
       const newBoxesInventory = [...prevState.boxesInventory];
       if (key.count > 1) {
         newBoxesInventory[keyIndex] = { ...key, count: key.count - 1 };
       } else {
         newBoxesInventory[keyIndex] = null;
       }
-      newBoxesInventory[lockboxIndex] = null; // Remove the lockbox
+      newBoxesInventory[lockboxIndex] = null;
 
       console.log('Updated boxes inventory:', newBoxesInventory);
 
-      // Add loot to box drops
       const newBoxDrops = [...prevState.boxDrops];
       const newUpdatedBoxDrops = {};
 
       loot.forEach(item => {
-        if (item.id !== 'box') {
-          const existingItemIndex = newBoxDrops.findIndex(slot => slot && slot.id === item.id);
-          if (existingItemIndex !== -1) {
-            const existingItem = newBoxDrops[existingItemIndex];
-            const newCount = Math.min(existingItem.count + item.count, existingItem.maxStack);
-            newBoxDrops[existingItemIndex] = { ...existingItem, count: newCount };
-            newUpdatedBoxDrops[existingItemIndex] = newBoxDrops[existingItemIndex];
-          } else {
-            const emptySlot = newBoxDrops.findIndex(slot => slot === null);
-            if (emptySlot !== -1) {
-              newBoxDrops[emptySlot] = item;
-              newUpdatedBoxDrops[emptySlot] = item;
-            }
-          }
+        const emptySlot = newBoxDrops.findIndex(slot => slot === null);
+        if (emptySlot !== -1) {
+          newBoxDrops[emptySlot] = item;
+          newUpdatedBoxDrops[emptySlot] = item;
+        } else {
+          console.log(`No empty slot in box drops, ${item.id} is lost`);
         }
       });
 
       console.log('Updated box drops:', newBoxDrops);
 
-      // Sort box drops
       const sortedBoxDrops = newBoxDrops
         .filter(item => item !== null)
         .sort((a, b) => {
@@ -192,57 +162,71 @@ const useBoxSystem = (gameState, setGameState) => {
         tooltipMessage: `Opened a lockbox and received ${loot.length} items!`
       };
     });
-  }, [openBoxLoot, setUpdatedBoxDrops]);
+  }, []);
 
   const takeAllFromBoxDrops = useCallback(() => {
     setGameState(prevState => {
       let newInventory = [...prevState.inventory];
       let newBoxDrops = [...prevState.boxDrops];
+      let newBoxesInventory = [...prevState.boxesInventory];
       let itemsMoved = false;
 
       newBoxDrops.forEach((boxDropItem, boxDropIndex) => {
         if (boxDropItem) {
           let remainingCount = boxDropItem.count;
 
-          // Try to add to existing stacks first
-          for (let i = 0; i < newInventory.length && remainingCount > 0; i++) {
-            if (newInventory[i] && newInventory[i].id === boxDropItem.id && newInventory[i].stackable) {
-              const spaceInStack = newInventory[i].maxStack - newInventory[i].count;
-              const amountToAdd = Math.min(spaceInStack, remainingCount);
-              newInventory[i] = {
-                ...newInventory[i],
-                count: newInventory[i].count + amountToAdd
-              };
-              remainingCount -= amountToAdd;
+          if (boxDropItem.id === 'box' || boxDropItem.id === 'simple_lockbox' || boxDropItem.id === 'simple_key') {
+            // Move boxes and keys to boxesInventory
+            while (remainingCount > 0) {
+              const emptySlotIndex = newBoxesInventory.findIndex(slot => slot === null);
+              if (emptySlotIndex !== -1) {
+                const amountToAdd = Math.min(boxDropItem.maxStack || 1, remainingCount);
+                newBoxesInventory[emptySlotIndex] = {...boxDropItem, count: amountToAdd};
+                remainingCount -= amountToAdd;
+                itemsMoved = true;
+              } else {
+                break; // No more space in boxesInventory
+              }
+            }
+          } else {
+            // Handle other items as before
+            // Try to add to existing stacks first
+            for (let i = 0; i < newInventory.length && remainingCount > 0; i++) {
+              if (newInventory[i] && newInventory[i].id === boxDropItem.id && newInventory[i].stackable) {
+                const spaceInStack = newInventory[i].maxStack - newInventory[i].count;
+                const amountToAdd = Math.min(spaceInStack, remainingCount);
+                newInventory[i] = {
+                  ...newInventory[i],
+                  count: newInventory[i].count + amountToAdd
+                };
+                remainingCount -= amountToAdd;
+                itemsMoved = true;
+              }
+            }
+
+            // If there are still items remaining, find empty slots
+            while (remainingCount > 0) {
+              const emptySlotIndex = newInventory.findIndex(slot => slot === null);
+              if (emptySlotIndex !== -1) {
+                const amountToAdd = Math.min(boxDropItem.maxStack, remainingCount);
+                newInventory[emptySlotIndex] = {...boxDropItem, count: amountToAdd};
+                remainingCount -= amountToAdd;
+                itemsMoved = true;
+              } else {
+                break;
+              }
             }
           }
 
-          // If there are still items remaining, find empty slots
-          while (remainingCount > 0) {
-            const emptySlotIndex = newInventory.findIndex(slot => slot === null);
-            if (emptySlotIndex !== -1) {
-              const amountToAdd = Math.min(boxDropItem.maxStack, remainingCount);
-              newInventory[emptySlotIndex] = {...boxDropItem, count: amountToAdd};
-              remainingCount -= amountToAdd;
-            } else {
-              break;
-            }
-          }
-
-          // If all items were moved, set the box drop slot to null
           if (remainingCount === 0) {
             newBoxDrops[boxDropIndex] = null;
-            itemsMoved = true;
           } else if (remainingCount < boxDropItem.count) {
-            // If some items were moved, update the count
             newBoxDrops[boxDropIndex] = {...boxDropItem, count: remainingCount};
-            itemsMoved = true;
           }
         }
       });
 
       if (itemsMoved) {
-        // Remove all null entries and sort the remaining items
         newBoxDrops = newBoxDrops.filter(item => item !== null);
         newBoxDrops.sort((a, b) => {
           const rarityOrder = [RARITY.LEGENDARY, RARITY.EPIC, RARITY.RARE, RARITY.UNCOMMON, RARITY.COMMON];
@@ -252,7 +236,6 @@ const useBoxSystem = (gameState, setGameState) => {
           return a.name.localeCompare(b.name);
         });
 
-        // Fill the rest with null
         while (newBoxDrops.length < prevState.boxDrops.length) {
           newBoxDrops.push(null);
         }
@@ -260,11 +243,16 @@ const useBoxSystem = (gameState, setGameState) => {
         return {
           ...prevState,
           inventory: newInventory,
-          boxDrops: newBoxDrops
+          boxesInventory: newBoxesInventory,
+          boxDrops: newBoxDrops,
+          tooltipMessage: "Items moved from box drops"
         };
       }
 
-      return prevState;
+      return {
+        ...prevState,
+        tooltipMessage: "No items to move from box drops"
+      };
     });
   }, []);
 
@@ -276,7 +264,7 @@ const useBoxSystem = (gameState, setGameState) => {
   }, []);
 
   return {
-    openBox,
+    openBox: processBoxOpen,
     takeAllFromBoxDrops,
     clearBoxDrops,
     updatedBoxDrops,

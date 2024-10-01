@@ -19,7 +19,7 @@ const useGameState = () => {
     tooltipMessage: null,
     boxesUnlocked: false,
     boxesInventory: Array(INITIAL_BOXES_INVENTORY_SIZE).fill(null),
-    boxDrops: Array(BOX_DROPS_INVENTORY_SIZE).fill(null),
+    boxDrops: [], // This will be initialized with 10 slots when boxes are unlocked
   });
 
   const [activeTab, setActiveTab] = useState('general');

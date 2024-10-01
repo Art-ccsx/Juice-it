@@ -9,7 +9,6 @@ const InventorySlot = ({ item, index, handleItemInteraction, onMouseEnter, onMou
     const isCtrlClick = event.ctrlKey;
     const isRightClick = event.button === 2;
     const isShiftHeld = event.shiftKey;
-    console.log("InventorySlot click", { isCtrlClick, isRightClick, isShiftHeld });
     handleItemInteraction(index, isCtrlClick, isRightClick, 'click', isShiftHeld);
   };
   
@@ -23,6 +22,9 @@ const InventorySlot = ({ item, index, handleItemInteraction, onMouseEnter, onMou
     const isShiftHeld = event.shiftKey;
     handleItemInteraction(index, isCtrlClick, isRightClick, 'contextmenu', isShiftHeld);
   };
+
+  // Use the item's actual name without modification
+  const displayName = item ? item.name : '';
 
   return (
     <div 
@@ -41,7 +43,7 @@ const InventorySlot = ({ item, index, handleItemInteraction, onMouseEnter, onMou
         <div className="inventory-slot-content">
           <Image
             src={`/assets/${item.id}.png`}
-            alt={item.name}
+            alt={displayName}
             layout="fill"
             objectFit="contain"
             draggable="false"

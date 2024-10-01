@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import Image from 'next/image';
 import Glossary from './Glossary';
 import Settings from './Settings';
-import { INITIAL_INVENTORY_SIZE, INITIAL_POUCH_SIZE, ITEMS } from '../constants';
+import { INITIAL_INVENTORY_SIZE, INITIAL_POUCH_SIZE, ITEMS, INITIAL_BOXES_INVENTORY_SIZE } from '../constants';
 
 const CostDisplay = React.memo(({ cost, item, onMouseEnter, onMouseLeave, onMouseMove }) => (
   <div 
@@ -24,16 +24,14 @@ const CostDisplay = React.memo(({ cost, item, onMouseEnter, onMouseLeave, onMous
   </div>
 ));
 
-const UpgradeTab = React.memo(({ inventorySlots, pouchSlots, addInventorySlot, addPouchSlot, onMouseEnter, onMouseLeave, onMouseMove, getInventoryUpgradeCost, shiniesCount, unlockBoxes, boxesUnlocked }) => {
+const UpgradeTab = React.memo(({ inventorySlots, pouchSlots, addInventorySlot, addPouchSlot, onMouseEnter, onMouseLeave, onMouseMove, getInventoryUpgradeCost, shiniesCount, unlockBoxes, boxesUnlocked, gameState, setGameState }) => {
   const inventoryUpgradeCost = useMemo(() => getInventoryUpgradeCost(inventorySlots - INITIAL_INVENTORY_SIZE), [getInventoryUpgradeCost, inventorySlots]);
   const pouchUpgradeCost = useMemo(() => getInventoryUpgradeCost(pouchSlots - INITIAL_POUCH_SIZE), [getInventoryUpgradeCost, pouchSlots]);
   const shiniesItem = useMemo(() => ITEMS.find(item => item.id === 'shinies'), []);
 
   const handleUnlockBoxes = () => {
-    console.log('Attempting to unlock boxes');
-    console.log('Current shinies count:', shiniesCount);
-    console.log('Boxes already unlocked:', boxesUnlocked);
-    unlockBoxes();
+    console.log('Current game state:', gameState);
+    unlockBoxes(gameState, setGameState);
   };
 
   return (
@@ -79,13 +77,13 @@ const UpgradeTab = React.memo(({ inventorySlots, pouchSlots, addInventorySlot, a
             <button
               className="bg-game-button hover:bg-game-button-hover text-white font-bold py-1 px-2 rounded text-sm mr-2"
               onClick={handleUnlockBoxes}
-              disabled={shiniesCount < 10}
+              disabled={shiniesCount < 1}
             >
               Unlock Boxes
             </button>
           )}
           {!boxesUnlocked && (
-            <CostDisplay cost={10} item={shiniesItem} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} onMouseMove={onMouseMove} />
+            <CostDisplay cost={1} item={shiniesItem} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} onMouseMove={onMouseMove} />
           )}
         </div>
       </div>

@@ -5,6 +5,7 @@ import { handleCtrlClick, handleRightClick, handleLeftClick } from './itemIntera
 import { handleCraftingInteraction, initializeCraftableItems } from './craftingLogic';
 import { getInventoryUpgradeCost, addInventorySlot as addInventorySlotUpgrade, addPouchSlot as addPouchSlotUpgrade, unlockBoxes } from './inventoryUpgrades';
 import useBoxSystem from './useBoxSystem';
+import { generateLockboxModifier } from './boxLootSystem';
 
 const useInventory = (gameState, setGameState) => {
   const { openBox, takeAllFromBoxDrops, clearBoxDrops, useKeyOnLockbox } = useBoxSystem(gameState, setGameState);
@@ -15,7 +16,6 @@ const useInventory = (gameState, setGameState) => {
   }, []);
 
   const handleItemInteraction = useCallback((index, isCtrlClick, isRightClick, mouseEvent, isShiftHeld) => {
-    console.log('handleItemInteraction called:', { index, isCtrlClick, isRightClick, mouseEvent, isShiftHeld });
     setGameState(prevState => {
       if (prevState.craftingItem && prevState.heldItem) return prevState;
 
@@ -27,11 +27,9 @@ const useInventory = (gameState, setGameState) => {
         if (typeof index === 'string' && index.startsWith('boxes_')) {
           const boxIndex = parseInt(index.split('_')[1]);
           const item = newState.boxesInventory[boxIndex];
-          console.log('Right-clicked item in boxes inventory:', item);
           if (item && (item.usable || item.id === 'simple_key')) {
             newState.craftingItem = item;
             newState.tooltipMessage = `${item.name} selected. Click on a ${item.id === 'simple_key' ? 'lockbox' : 'item'} to use it.`;
-            console.log('Crafting item set:', newState.craftingItem);
             return newState;
           }
         }
@@ -41,13 +39,10 @@ const useInventory = (gameState, setGameState) => {
           if (index.startsWith('boxes_')) {
             const boxIndex = parseInt(index.split('_')[1]);
             const item = newState.boxesInventory[boxIndex];
-            console.log('Left-clicked item in boxes inventory:', item);
             if (item && item.id === 'box') {
               openBox(boxIndex);
             } else if (newState.craftingItem) {
-              console.log('Crafting item:', newState.craftingItem);
               if (newState.craftingItem.id === 'simple_key' && item && item.id === 'simple_lockbox') {
-                console.log('Attempting to use key on lockbox');
                 const keyIndex = newState.boxesInventory.findIndex(i => i && i.id === 'simple_key');
                 useKeyOnLockbox(keyIndex, boxIndex);
                 if (!isShiftHeld) {
@@ -96,7 +91,6 @@ const useInventory = (gameState, setGameState) => {
         delete newState.upgradedItem;
       }
 
-      console.log('Final state after interaction:', newState);
       return newState;
     });
   }, [openBox, useKeyOnLockbox]);
@@ -123,9 +117,12 @@ const useInventory = (gameState, setGameState) => {
   const clearStorage = useCallback(() => {
     setGameState(prevState => ({
       ...prevState,
-      inventory: prevState.inventory.map(() => null),
+      inventory: Array(prevState.inventory.length).fill(null),
+      pouch: Array(prevState.pouch.length).fill(null),
+      boxesInventory: Array(prevState.boxesInventory.length).fill(null), // Clear boxes inventory
+      boxDrops: Array(prevState.boxDrops.length).fill(null), // Clear box drops
     }));
-  }, []);
+  }, [setGameState]);
 
   const sortStorage = useCallback(() => {
     setGameState(prevState => {
@@ -211,30 +208,56 @@ const useInventory = (gameState, setGameState) => {
   }, []);
 
   const spawnItem = useCallback((itemId) => {
+    console.log('Spawning item:', itemId);
     setGameState(prevState => {
       const itemToSpawn = [...ITEMS, MAP_ITEM].find(item => item.id === itemId);
-      if (!itemToSpawn) return prevState;
+      console.log('Item to spawn:', itemToSpawn);
+      if (!itemToSpawn) {
+        console.log('Item not found');
+        return prevState;
+      }
 
       if ((itemToSpawn.id === 'box' || itemToSpawn.id === 'simple_lockbox' || itemToSpawn.id === 'simple_key') && prevState.boxesUnlocked) {
+        console.log('Spawning box, lockbox, or key');
         const emptyBoxSlot = prevState.boxesInventory.findIndex(slot => slot === null);
+        console.log('Empty box slot index:', emptyBoxSlot);
         if (emptyBoxSlot !== -1) {
           const newBoxesInventory = [...prevState.boxesInventory];
-          newBoxesInventory[emptyBoxSlot] = { ...itemToSpawn, count: 1 };
+          let spawnedItem = { ...itemToSpawn, count: 1 };
+          
+          // Add a modifier if it's a lockbox
+          if (itemToSpawn.id === 'simple_lockbox') {
+            console.log('Spawning lockbox, generating modifier');
+            const modifier = generateLockboxModifier();
+            console.log('Generated modifier:', modifier);
+            spawnedItem.modifiers = [modifier];
+            spawnedItem.name = modifier.appendToEnd 
+              ? `Lockbox ${modifier.name}`
+              : `${modifier.name.replace('of ', '')} Lockbox`;
+            console.log('Final lockbox name:', spawnedItem.name);
+          }
+          
+          newBoxesInventory[emptyBoxSlot] = spawnedItem;
+          console.log('Updated boxes inventory:', newBoxesInventory);
           return {
             ...prevState,
             boxesInventory: newBoxesInventory,
             discoveredItems: new Set([...prevState.discoveredItems, itemToSpawn.id]),
-            tooltipMessage: `Spawned 1 ${itemToSpawn.name} into boxes and keys inventory`
+            tooltipMessage: `Spawned 1 ${spawnedItem.name} into boxes and keys inventory`
           };
         } else {
+          console.log('No empty slots in boxes inventory');
           return {
             ...prevState,
             tooltipMessage: "No empty slots in boxes and keys inventory to spawn item!"
           };
         }
       } else {
+        console.log('Spawning regular item');
         const emptySlot = prevState.inventory.findIndex(slot => slot === null);
+        console.log('Empty inventory slot index:', emptySlot);
         if (emptySlot === -1) {
+          console.log('No empty slots in inventory');
           return {
             ...prevState,
             tooltipMessage: "No empty slots in inventory to spawn item!"
@@ -243,6 +266,7 @@ const useInventory = (gameState, setGameState) => {
 
         const newInventory = [...prevState.inventory];
         newInventory[emptySlot] = { ...itemToSpawn, count: 1 };
+        console.log('Updated inventory:', newInventory);
 
         return {
           ...prevState,

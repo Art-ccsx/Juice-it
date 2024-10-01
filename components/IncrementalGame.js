@@ -141,69 +141,9 @@ const IncrementalGame = () => {
   }, [gameState.inventory]);
 
   const debugSpawnItem = useCallback((item) => {
-    setGameState(prevState => {
-      let newInventory = [...prevState.inventory];
-      let newBoxesInventory = [...prevState.boxesInventory];
-      let added = false;
-
-      if ((item.id === 'box' || item.id === 'simple_lockbox' || item.id === 'simple_key') && prevState.boxesUnlocked) {
-        // For boxes and keys, try to add to boxes inventory
-        if (item.stackable) {
-          const existingStackIndex = newBoxesInventory.findIndex(slot => slot && slot.id === item.id && slot.count < slot.maxStack);
-          if (existingStackIndex !== -1) {
-            newBoxesInventory[existingStackIndex] = {
-              ...newBoxesInventory[existingStackIndex],
-              count: newBoxesInventory[existingStackIndex].count + 1
-            };
-            added = true;
-          }
-        }
-        
-        if (!added) {
-          const emptySlot = newBoxesInventory.findIndex(slot => slot === null);
-          if (emptySlot !== -1) {
-            newBoxesInventory[emptySlot] = { ...item, count: 1 };
-            added = true;
-          }
-        }
-      } else {
-        // For other items, try to add to main inventory
-        if (item.stackable) {
-          const existingStackIndex = newInventory.findIndex(slot => slot && slot.id === item.id && slot.count < slot.maxStack);
-          if (existingStackIndex !== -1) {
-            newInventory[existingStackIndex] = {
-              ...newInventory[existingStackIndex],
-              count: newInventory[existingStackIndex].count + 1
-            };
-            added = true;
-          }
-        }
-        
-        if (!added) {
-          const emptySlot = newInventory.findIndex(slot => slot === null);
-          if (emptySlot !== -1) {
-            newInventory[emptySlot] = { ...item, count: 1 };
-            added = true;
-          }
-        }
-      }
-
-      if (added) {
-        return {
-          ...prevState,
-          inventory: newInventory,
-          boxesInventory: newBoxesInventory,
-          discoveredItems: new Set([...prevState.discoveredItems, item.id]),
-          tooltipMessage: `Spawned 1 ${item.name}`
-        };
-      } else {
-        return {
-          ...prevState,
-          tooltipMessage: "No space available to spawn item!"
-        };
-      }
-    });
-  }, []);
+    console.log(`Debug spawning item:`, item);
+    spawnItem(item.id);
+  }, [spawnItem]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -239,6 +179,8 @@ const IncrementalGame = () => {
             shiniesCount={shiniesCount}
             unlockBoxes={unlockBoxes}
             boxesUnlocked={gameState.boxesUnlocked}
+            gameState={gameState}
+            setGameState={setGameState}
           />
         );
       case 'map':
@@ -327,7 +269,7 @@ const IncrementalGame = () => {
             <div className="w-1/2 pl-2">
               <h3 className="text-xl font-bold mb-2">Box Drops</h3>
               <div className="flex flex-wrap mb-2">
-                {gameState.boxDrops.map((item, index) => (
+                {gameState.boxDrops && gameState.boxDrops.map((item, index) => (
                   <div key={index} className="relative">
                     <InventorySlot
                       item={item}
@@ -339,7 +281,11 @@ const IncrementalGame = () => {
                       className="inventory-slot w-8 h-8"
                     />
                     {updatedBoxDrops[index] && (
-                      <ItemParticles key={`particle_${index}`} item={updatedBoxDrops[index]} />
+                      <ItemParticles 
+                        key={`particle_${index}_${updatedBoxDrops[index].id}`} 
+                        item={updatedBoxDrops[index]} 
+                        color={updatedBoxDrops[index].rarity.color}
+                      />
                     )}
                   </div>
                 ))}

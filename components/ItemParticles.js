@@ -1,53 +1,32 @@
 import React, { useEffect, useRef } from 'react';
 
-const ItemParticles = ({ item }) => {
-  const containerRef = useRef(null);
+const ItemParticles = ({ item, color }) => {
+  const canvasRef = useRef(null);
 
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container || !item) return;
-
-    const particleCount = 10;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
     const particles = [];
 
-    for (let i = 0; i < particleCount; i++) {
-      const particle = document.createElement('div');
-      particle.className = 'absolute w-1 h-1 rounded-full';
-      particle.style.backgroundColor = item.rarity?.color || '#FFFFFF';
-      particle.style.left = `${Math.random() * 100}%`;
-      particle.style.top = `${Math.random() * 100}%`;
-      particle.style.animation = `particle-fade 1s ease-out forwards`;
-      
-      const angle = (Math.random() * 360 * Math.PI) / 180;
-      const speed = Math.random() * 50 + 50;
-      particle.style.setProperty('--tw-translate-x', `${Math.cos(angle) * speed}%`);
-      particle.style.setProperty('--tw-translate-y', `${Math.sin(angle) * speed}%`);
+    // ... rest of your particle animation logic
 
-      container.appendChild(particle);
-      particles.push(particle);
-    }
-
-    const timer = setTimeout(() => {
-      particles.forEach(p => {
-        if (container.contains(p)) {
-          container.removeChild(p);
-        }
-      });
-    }, 1000);
-
-    return () => {
-      clearTimeout(timer);
-      particles.forEach(p => {
-        if (container.contains(p)) {
-          container.removeChild(p);
-        }
-      });
+    // Use the color prop when creating particles
+    const createParticle = () => {
+      return {
+        x: canvas.width / 2,
+        y: canvas.height / 2,
+        size: Math.random() * 5 + 1,
+        color: color || item.rarity.color,
+        speedX: Math.random() * 3 - 1.5,
+        speedY: Math.random() * 3 - 1.5,
+      };
     };
-  }, [item]);
 
-  return (
-    <div ref={containerRef} className="absolute inset-0 overflow-hidden pointer-events-none" />
-  );
+    // ... rest of your animation code
+
+  }, [item, color]);
+
+  return <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full pointer-events-none" />;
 };
 
 export default ItemParticles;

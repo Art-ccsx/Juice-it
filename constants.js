@@ -110,11 +110,19 @@ export const BOX_DROPS_INVENTORY_SIZE = 50;
 export const MODIFIER_ICONS = {
   stack_boost: '/assets/stack_symbol.png',
   extra_drops: '/assets/extra_drop_symbol.png',
+  green_notch: '/assets/green_notch.png',
+  yellow_notch: '/assets/yellow_notch.png',
 };
 
 export const ITEM_ICONS = {
   shinies: '/assets/shinies.png',
   enriching_juice: '/assets/enriching_juice.png',
+  modifying_prism: '/assets/modifying_prism.png',
+  box: '/assets/box.png',
+  common: '/assets/common_icon.png',
+  uncommon: '/assets/uncommon_icon.png',
+  simple_key: '/assets/simple_key.png',
+  simple_lockbox: '/assets/simple_lockbox.png',
 };
 
 export const MAP_MODIFIERS = [

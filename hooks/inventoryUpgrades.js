@@ -58,8 +58,37 @@ export const addPouchSlot = (state, setGameState) => {
 };
 
 export const unlockBoxes = (state, setGameState) => {
+  console.log('unlockBoxes called with state:', state);
+  console.log('setGameState type:', typeof setGameState);
+
+  // Check if setGameState is a function
+  if (typeof setGameState !== 'function') {
+    console.error('setGameState is not a function');
+    return;
+  }
+
+  // Check if state exists
+  if (!state) {
+    console.error('State is undefined');
+    setGameState(prevState => ({
+      ...prevState,
+      tooltipMessage: "Error: Game state is not initialized"
+    }));
+    return;
+  }
+
+  // Check if state.inventory exists
+  if (!state.inventory) {
+    console.error('Inventory is undefined');
+    setGameState({
+      ...state,
+      tooltipMessage: "Error: Inventory is not initialized"
+    });
+    return;
+  }
+
   const shiniesCount = state.inventory.reduce((sum, item) => sum + (item && item.id === 'shinies' ? item.count : 0), 0);
-  const unlockCost = 1000;
+  const unlockCost = 1;
 
   if (shiniesCount >= unlockCost) {
     const newInventory = state.inventory.map(item => {
@@ -73,7 +102,13 @@ export const unlockBoxes = (state, setGameState) => {
       ...state,
       inventory: newInventory,
       boxesUnlocked: true,
-      boxesInventory: Array(INITIAL_BOXES_INVENTORY_SIZE).fill(null)
+      boxesInventory: Array(INITIAL_BOXES_INVENTORY_SIZE).fill(null),
+      boxDrops: Array(10).fill(null) // Initialize boxDrops with 10 empty slots
+    });
+  } else {
+    setGameState({
+      ...state,
+      tooltipMessage: `Not enough shinies. You need ${unlockCost} shinies to unlock boxes.`
     });
   }
 };

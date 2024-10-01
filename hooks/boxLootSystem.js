@@ -1,4 +1,4 @@
-import { ITEMS, RARITY } from '../constants';
+import { ITEMS, RARITY, MODIFIER_ICONS, ITEM_ICONS } from '../constants';
 
 // Define box types and their properties
 const BOX_TYPES = {
@@ -28,6 +28,81 @@ const KEY_MODIFIER_TYPES = {
   QUANTITY_BOOST: 'key_quantity_boost',
   SPECIFIC_ITEM_BOOST: 'key_specific_item_boost',
 };
+
+// Define lockbox modifier types
+const LOCKBOX_MODIFIER_TYPES = {
+  EXTRA_COMMON_DROPS: 'extra_common_drops',
+  EXTRA_UNCOMMON_DROPS: 'extra_uncommon_drops',
+  EXTRA_SHINIES_YELLOW_NOTCH: 'extra_shinies_yellow_notch',
+  EXTRA_PRISMS_GREEN_NOTCH: 'extra_prisms_green_notch',
+  EXTRA_RANDOM_DROPS: 'extra_random_drops',
+  EXTRA_BOX: 'extra_box',
+};
+
+// Define lockbox modifiers
+const LOCKBOX_MODIFIERS = [
+  {
+    id: LOCKBOX_MODIFIER_TYPES.EXTRA_COMMON_DROPS,
+    name: 'of Common Bounty',
+    description: 'Has {x} extra common drops',
+    minValue: 1,
+    maxValue: 4,
+    chance: 0.45,
+    icon: MODIFIER_ICONS.extra_drops,
+    itemIcon: ITEM_ICONS.common,
+  },
+  {
+    id: LOCKBOX_MODIFIER_TYPES.EXTRA_UNCOMMON_DROPS,
+    name: 'of Uncommon Bounty',
+    description: 'Has {x} extra uncommon drops',
+    minValue: 1,
+    maxValue: 2,
+    chance: 0.35,
+    icon: MODIFIER_ICONS.extra_drops,
+    itemIcon: ITEM_ICONS.uncommon,
+  },
+  {
+    id: LOCKBOX_MODIFIER_TYPES.EXTRA_SHINIES_YELLOW_NOTCH,
+    name: 'Shiny Fortune',
+    description: 'Drops {x} extra shinies when opened by a key with a yellow notch',
+    minValue: 5,
+    maxValue: 20,
+    chance: 0.05,
+    icon: MODIFIER_ICONS.extra_drops,
+    itemIcon: ITEM_ICONS.shinies,
+    notchIcon: '/assets/yellow_notch.png',
+  },
+  {
+    id: LOCKBOX_MODIFIER_TYPES.EXTRA_PRISMS_GREEN_NOTCH,
+    name: 'Prismatic Fortune',
+    description: 'Drops {x} extra enhancing prisms when opened by a key with a green notch',
+    minValue: 3,
+    maxValue: 5,
+    chance: 0.05,
+    icon: MODIFIER_ICONS.extra_drops,
+    itemIcon: ITEM_ICONS.modifying_prism,
+    notchIcon: '/assets/green_notch.png',
+  },
+  {
+    id: LOCKBOX_MODIFIER_TYPES.EXTRA_RANDOM_DROPS,
+    name: 'of Bounty',
+    description: 'Has {x} extra random drops',
+    minValue: 1,
+    maxValue: 10,
+    chance: 0.05,
+    icon: MODIFIER_ICONS.extra_drops,
+  },
+  {
+    id: LOCKBOX_MODIFIER_TYPES.EXTRA_BOX,
+    name: 'Inception',
+    description: 'Drops an extra box',
+    minValue: 1,
+    maxValue: 1,
+    chance: 0.05,
+    icon: MODIFIER_ICONS.extra_drops,
+    itemIcon: ITEM_ICONS.box,
+  },
+];
 
 // Loot table for different box/compartment types
 const LOOT_TABLES = {
@@ -117,63 +192,154 @@ const applyKeyModifiers = (loot, keyModifiers) => {
   return loot;
 };
 
-// Function to generate loot based on box type and modifiers
+// Function to generate a random modifier for a lockbox
+const generateLockboxModifier = () => {
+  const roll = Math.random();
+  let cumulativeProbability = 0;
+  
+  for (const modifier of LOCKBOX_MODIFIERS) {
+    cumulativeProbability += modifier.chance;
+    if (roll < cumulativeProbability) {
+      const value = Math.floor(Math.random() * (modifier.maxValue - modifier.minValue + 1)) + modifier.minValue;
+      return {
+        ...modifier,
+        value,
+        appendToEnd: modifier.name.startsWith('of')
+      };
+    }
+  }
+  
+  // Fallback to extra common drops if somehow no modifier was selected
+  const fallbackModifier = LOCKBOX_MODIFIERS[0];
+  return {
+    ...fallbackModifier,
+    value: Math.floor(Math.random() * (fallbackModifier.maxValue - fallbackModifier.minValue + 1)) + fallbackModifier.minValue,
+    appendToEnd: fallbackModifier.name.startsWith('of')
+  };
+};
+
+// Update the generateLoot function to handle lockbox modifiers
 const generateLoot = (boxType, modifiers = [], keyModifiers = []) => {
+  console.log(`Generating loot for box type: ${boxType}`);
+  console.log('Modifiers:', modifiers);
+  console.log('Key modifiers:', keyModifiers);
+
   const lootTable = LOOT_TABLES[boxType] || LOOT_TABLES[BOX_TYPES.SIMPLE];
   const itemPool = ITEM_POOLS[boxType] || ITEM_POOLS[BOX_TYPES.SIMPLE];
   let loot = [];
-  let itemCount = Math.floor(Math.random() * 3) + 1;
+  let baseItemCount = Math.floor(Math.random() * 3) + 1;
 
+  console.log(`Initial base item count: ${baseItemCount}`);
+
+  // Generate base loot
+  console.log(`Generating ${baseItemCount} base loot items`);
+  for (let i = 0; i < baseItemCount; i++) {
+    const rarity = rollRarity(lootTable);
+    const item = generateItem(rarity, itemPool);
+    if (item) {
+      loot.push(item);
+      console.log(`Generated base loot item: ${item.name} (${rarity})`);
+    }
+  }
+
+  // Apply modifiers
   modifiers.forEach(modifier => {
-    switch (modifier.type) {
-      case MODIFIER_TYPES.QUANTITY_BOOST:
-        itemCount += modifier.value;
-        break;
-      case MODIFIER_TYPES.RARITY_BOOST:
-        // Adjust loot table probabilities
-        Object.keys(lootTable).forEach(rarity => {
-          if (rarity !== 'LEGENDARY') {
-            const nextRarity = Object.keys(RARITY)[Object.keys(RARITY).indexOf(rarity) + 1];
-            lootTable[nextRarity] += lootTable[rarity] * 0.1 * modifier.value;
-            lootTable[rarity] -= lootTable[rarity] * 0.1 * modifier.value;
+    console.log(`Applying modifier: ${modifier.id}`);
+    switch (modifier.id) {
+      case LOCKBOX_MODIFIER_TYPES.EXTRA_COMMON_DROPS:
+        console.log(`Adding ${modifier.value} extra common drops`);
+        for (let i = 0; i < modifier.value; i++) {
+          const item = generateItem('COMMON', itemPool);
+          if (item) {
+            loot.push(item);
+            console.log(`Added extra common item: ${item.name}`);
           }
-        });
+        }
+        break;
+      case LOCKBOX_MODIFIER_TYPES.EXTRA_UNCOMMON_DROPS:
+        for (let i = 0; i < modifier.value; i++) {
+          const item = generateItem('UNCOMMON', itemPool);
+          if (item) {
+            loot.push(item);
+            console.log(`Added extra uncommon item: ${item.name}`);
+          }
+        }
+        break;
+      case LOCKBOX_MODIFIER_TYPES.EXTRA_SHINIES_YELLOW_NOTCH:
+        if (keyModifiers.some(km => km.id === 'yellow_notch')) {
+          const shinies = ITEMS.find(item => item.id === 'shinies');
+          if (shinies) {
+            loot.push({ ...shinies, count: modifier.value });
+            console.log(`Added ${modifier.value} extra shinies due to yellow notch`);
+          }
+        }
+        break;
+      case LOCKBOX_MODIFIER_TYPES.EXTRA_PRISMS_GREEN_NOTCH:
+        if (keyModifiers.some(km => km.id === 'green_notch')) {
+          const prism = ITEMS.find(item => item.id === 'modifying_prism');
+          if (prism) {
+            loot.push({ ...prism, count: modifier.value });
+            console.log(`Added ${modifier.value} extra modifying prisms due to green notch`);
+          }
+        }
+        break;
+      case LOCKBOX_MODIFIER_TYPES.EXTRA_RANDOM_DROPS:
+        for (let i = 0; i < modifier.value; i++) {
+          const randomRarity = Object.keys(RARITY)[Math.floor(Math.random() * Object.keys(RARITY).length)];
+          const item = generateItem(randomRarity, itemPool);
+          if (item) {
+            loot.push(item);
+            console.log(`Added extra random item: ${item.name} (${randomRarity})`);
+          }
+        }
+        break;
+      case LOCKBOX_MODIFIER_TYPES.EXTRA_BOX:
+        console.log(`Extra box modifier detected. Value: ${modifier.value}`);
+        const boxItem = ITEMS.find(item => item.id === 'box');
+        if (boxItem) {
+          console.log(`Adding ${modifier.value} extra box(es) to loot`);
+          for (let i = 0; i < modifier.value; i++) {
+            loot.push({ ...boxItem, count: 1 });
+          }
+        } else {
+          console.log('Error: Box item not found in ITEMS');
+        }
         break;
     }
   });
 
-  for (let i = 0; i < itemCount; i++) {
-    const roll = Math.random();
-    let cumulativeProbability = 0;
-    let selectedRarity;
-
-    for (const [rarity, probability] of Object.entries(lootTable)) {
-      cumulativeProbability += probability;
-      if (roll < cumulativeProbability) {
-        selectedRarity = rarity;
-        break;
-      }
-    }
-
-    if (!selectedRarity) continue;
-
-    const itemsOfSelectedRarity = itemPool[selectedRarity];
-    if (!itemsOfSelectedRarity || itemsOfSelectedRarity.length === 0) continue;
-
-    const selectedItemId = itemsOfSelectedRarity[Math.floor(Math.random() * itemsOfSelectedRarity.length)];
-    const selectedItem = ITEMS.find(item => item.id === selectedItemId);
-
-    if (!selectedItem) continue;
-
-    const specificBoost = modifiers.find(m => m.type === MODIFIER_TYPES.SPECIFIC_ITEM_BOOST && m.itemId === selectedItem.id);
-    const count = specificBoost ? Math.ceil(Math.random() * 3 * specificBoost.value) : Math.ceil(Math.random() * 3);
-
-    loot.push({ ...selectedItem, count });
-  }
-
   loot = applyKeyModifiers(loot, keyModifiers);
 
+  console.log('Final loot:', loot);
   return loot;
+};
+
+// Helper function to roll for rarity
+const rollRarity = (lootTable) => {
+  const roll = Math.random();
+  let cumulativeProbability = 0;
+  
+  for (const [rarity, probability] of Object.entries(lootTable)) {
+    cumulativeProbability += probability;
+    if (roll < cumulativeProbability) {
+      return rarity;
+    }
+  }
+  
+  return 'COMMON'; // Fallback to common if somehow no rarity was selected
+};
+
+// Helper function to generate a single item
+const generateItem = (rarity, itemPool) => {
+  const itemsOfRarity = itemPool[rarity];
+  if (!itemsOfRarity || itemsOfRarity.length === 0) return null;
+
+  const selectedItemId = itemsOfRarity[Math.floor(Math.random() * itemsOfRarity.length)];
+  const selectedItem = ITEMS.find(item => item.id === selectedItemId);
+
+  if (!selectedItem) return null;
+
+  return { ...selectedItem, count: Math.ceil(Math.random() * 3) };
 };
 
 // Function to open a simple box
@@ -212,7 +378,11 @@ const openSequentialBox = (stages, keys) => {
 
 // Main function to open a box
 const openBox = (box, keys = []) => {
+  console.log('Opening box:', box);
+  console.log('Keys:', keys);
+
   if (!box || typeof box !== 'object') {
+    console.log('Invalid box object');
     return [];
   }
 
@@ -221,25 +391,34 @@ const openBox = (box, keys = []) => {
   let loot;
   switch (box.id) {
     case 'box':
+      console.log('Opening simple box');
       loot = generateLoot(BOX_TYPES.SIMPLE, box.modifiers || [], keyModifiers);
       break;
     case 'simple_lockbox':
+      console.log('Opening simple lockbox');
       if (keys.length === 0 || keys[0].id !== 'simple_key') {
+        console.log('No valid key for lockbox');
         return [];
       }
+      // Use the existing modifiers on the lockbox
+      console.log('Lockbox modifiers:', box.modifiers);
       loot = generateLoot(BOX_TYPES.LOCKBOX, box.modifiers || [], keyModifiers);
       break;
     case 'compartment_box':
+      console.log('Opening compartment box');
       loot = openCompartmentBox(box.compartments || [], box.modifiers || [], keyModifiers);
       break;
     case 'sequential_box':
+      console.log('Opening sequential box');
       loot = openSequentialBox(box.stages || [], keys);
       break;
     default:
+      console.log('Unknown box type');
       return [];
   }
 
+  console.log('Loot generated:', loot);
   return loot;
 };
 
-export { openBox, BOX_TYPES, COMPARTMENT_TYPES, MODIFIER_TYPES, KEY_MODIFIER_TYPES };
+export { openBox, BOX_TYPES, COMPARTMENT_TYPES, MODIFIER_TYPES, KEY_MODIFIER_TYPES, LOCKBOX_MODIFIER_TYPES, generateLockboxModifier, generateLoot };
