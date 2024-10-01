@@ -1,8 +1,8 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { ITEMS, MAP_ITEM, RARITY } from '../constants';
 import { getItem, setItem, removeItem } from './inventoryHelpers';
 import { handleCtrlClick, handleRightClick, handleLeftClick } from './itemInteractions';
-import { handleCraftingInteraction } from './craftingLogic';
+import { handleCraftingInteraction, initializeCraftableItems } from './craftingLogic';
 import { getInventoryUpgradeCost, addInventorySlot as addInventorySlotUpgrade, addPouchSlot as addPouchSlotUpgrade, unlockBoxes } from './inventoryUpgrades';
 import useBoxSystem from './useBoxSystem';
 
@@ -10,7 +10,12 @@ const useInventory = (gameState, setGameState) => {
   const { openBox, takeAllFromBoxDrops, clearBoxDrops, useKeyOnLockbox } = useBoxSystem(gameState, setGameState);
   const [upgradedItem, setUpgradedItem] = useState(null);
 
+  useEffect(() => {
+    initializeCraftableItems();
+  }, []);
+
   const handleItemInteraction = useCallback((index, isCtrlClick, isRightClick, mouseEvent, isShiftHeld) => {
+    console.log('handleItemInteraction called:', { index, isCtrlClick, isRightClick, mouseEvent, isShiftHeld });
     setGameState(prevState => {
       if (prevState.craftingItem && prevState.heldItem) return prevState;
 
@@ -22,9 +27,11 @@ const useInventory = (gameState, setGameState) => {
         if (typeof index === 'string' && index.startsWith('boxes_')) {
           const boxIndex = parseInt(index.split('_')[1]);
           const item = newState.boxesInventory[boxIndex];
-          if (item && item.id === 'simple_key') {
+          console.log('Right-clicked item in boxes inventory:', item);
+          if (item && (item.usable || item.id === 'simple_key')) {
             newState.craftingItem = item;
-            newState.tooltipMessage = "Key selected. Click on a lockbox to open it.";
+            newState.tooltipMessage = `${item.name} selected. Click on a ${item.id === 'simple_key' ? 'lockbox' : 'item'} to use it.`;
+            console.log('Crafting item set:', newState.craftingItem);
             return newState;
           }
         }
@@ -34,12 +41,26 @@ const useInventory = (gameState, setGameState) => {
           if (index.startsWith('boxes_')) {
             const boxIndex = parseInt(index.split('_')[1]);
             const item = newState.boxesInventory[boxIndex];
+            console.log('Left-clicked item in boxes inventory:', item);
             if (item && item.id === 'box') {
               openBox(boxIndex);
-            } else if (newState.craftingItem && newState.craftingItem.id === 'simple_key' && item && item.id === 'simple_lockbox') {
-              const keyIndex = newState.boxesInventory.findIndex(i => i && i.id === 'simple_key');
-              useKeyOnLockbox(keyIndex, boxIndex);
-              newState.craftingItem = null;
+            } else if (newState.craftingItem) {
+              console.log('Crafting item:', newState.craftingItem);
+              if (newState.craftingItem.id === 'simple_key' && item && item.id === 'simple_lockbox') {
+                console.log('Attempting to use key on lockbox');
+                const keyIndex = newState.boxesInventory.findIndex(i => i && i.id === 'simple_key');
+                useKeyOnLockbox(keyIndex, boxIndex);
+                if (!isShiftHeld) {
+                  newState.craftingItem = null;
+                } else {
+                  // If shift is held, keep the crafting item, but update its count
+                  const updatedKey = newState.boxesInventory[keyIndex];
+                  newState.craftingItem = updatedKey ? { ...updatedKey } : null;
+                }
+              } else {
+                const result = handleCraftingInteraction(newState, index, isShiftHeld);
+                newState = result.continueCrafting ? { ...result, craftingItem: newState.craftingItem } : result;
+              }
             } else if (newState.heldItem && (newState.heldItem.id === 'box' || newState.heldItem.id === 'simple_lockbox' || newState.heldItem.id === 'simple_key')) {
               newState = handleLeftClick(newState, index, (state, idx) => handleCraftingInteraction(state, idx, isShiftHeld));
             } else {
@@ -48,12 +69,22 @@ const useInventory = (gameState, setGameState) => {
           } else if (index.startsWith('boxDrops_')) {
             return newState;
           } else {
-            const result = handleLeftClick(newState, index, (state, idx) => handleCraftingInteraction(state, idx, isShiftHeld));
-            newState = result.continueCrafting ? { ...result, craftingItem: newState.craftingItem } : result;
+            // This is for the main inventory or other non-box inventories
+            if (newState.craftingItem && newState.craftingItem.usable) {
+              const result = handleCraftingInteraction(newState, index, isShiftHeld);
+              newState = result.continueCrafting ? { ...result, craftingItem: newState.craftingItem } : result;
+            } else {
+              newState = handleLeftClick(newState, index, (state, idx) => handleCraftingInteraction(state, idx, isShiftHeld));
+            }
           }
         } else {
-          const result = handleLeftClick(newState, index, (state, idx) => handleCraftingInteraction(state, idx, isShiftHeld));
-          newState = result.continueCrafting ? { ...result, craftingItem: newState.craftingItem } : result;
+          // This is for numeric indices (main inventory)
+          if (newState.craftingItem && newState.craftingItem.usable) {
+            const result = handleCraftingInteraction(newState, index, isShiftHeld);
+            newState = result.continueCrafting ? { ...result, craftingItem: newState.craftingItem } : result;
+          } else {
+            newState = handleLeftClick(newState, index, (state, idx) => handleCraftingInteraction(state, idx, isShiftHeld));
+          }
         }
       }
 
@@ -65,6 +96,7 @@ const useInventory = (gameState, setGameState) => {
         delete newState.upgradedItem;
       }
 
+      console.log('Final state after interaction:', newState);
       return newState;
     });
   }, [openBox, useKeyOnLockbox]);

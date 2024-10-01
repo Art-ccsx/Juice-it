@@ -79,12 +79,12 @@ export const ITEMS = [
   {
     id: 'simple_key',
     name: 'Simple Key',
-    rarity: RARITY.UNCOMMON,
+    rarity: RARITY.COMMON, // Changed from UNCOMMON to COMMON
     isMapItem: false,
-    description: 'A key that can open simple lockboxes.',
+    description: 'A simple key that can open simple lockboxes.',
     image: '/assets/simple_key.png',
     stackable: true,
-    maxStack: 999,
+    maxStack: 99,
     dropChance: SIMPLE_KEY_DROP_CHANCE,
     usable: false,
   },

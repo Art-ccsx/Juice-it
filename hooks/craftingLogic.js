@@ -1,5 +1,8 @@
 import { getItem, setItem, removeItems, countItem } from './inventoryHelpers';
-import { RARITY, MAP_MODIFIERS } from '../constants';
+import { RARITY, MAP_MODIFIERS, ITEMS } from '../constants';
+
+// Define a list of craftable items and their crafting functions
+const CRAFTABLE_ITEMS = {};
 
 export const upgradeMap = (targetItem) => {
   const rarityOrder = [RARITY.COMMON, RARITY.UNCOMMON, RARITY.RARE, RARITY.EPIC, RARITY.LEGENDARY];
@@ -45,19 +48,27 @@ export const upgradeMap = (targetItem) => {
   };
 };
 
-export const updateStateAfterCrafting = (state, index, upgradedMap, material) => {
-  const newState = setItem(state, index, upgradedMap);
+// Now that upgradeMap is defined, we can add it to CRAFTABLE_ITEMS
+CRAFTABLE_ITEMS['modifying_prism'] = {
+  apply: upgradeMap,
+  canApply: (targetItem) => targetItem.isMapItem && targetItem.rarity.name === RARITY.COMMON.name
+};
+
+export const updateStateAfterCrafting = (state, index, upgradedItem, material) => {
+  const newState = setItem(state, index, upgradedItem);
   return {
     ...newState,
     craftingItem: null,
-    tooltipMessage: `Successfully upgraded map to ${upgradedMap.name}`,
+    tooltipMessage: `Successfully used ${material.name} on ${upgradedItem.name}`,
   };
 };
 
 export const isCraftingApplicable = (craftingItem, targetItem) => {
-  return craftingItem.id === 'modifying_prism' && 
-         targetItem.isMapItem && 
-         targetItem.rarity.name === RARITY.COMMON.name;
+  if (craftingItem.id in CRAFTABLE_ITEMS) {
+    // Call the specific crafting function for this item
+    return CRAFTABLE_ITEMS[craftingItem.id].canApply(targetItem);
+  }
+  return false;
 };
 
 export const handleCraftingInteraction = (state, index, isShiftHeld) => {
@@ -80,16 +91,21 @@ export const handleCraftingInteraction = (state, index, isShiftHeld) => {
         newPouch = removeItems(newPouch, material.id, 1);
       }
       
-      const upgradedMap = upgradeMap(targetItem);
+      const craftingItem = CRAFTABLE_ITEMS[material.id];
+      if (!craftingItem || typeof craftingItem.apply !== 'function') {
+        console.error(`Invalid crafting item for ${material.id}`);
+        return state;
+      }
+      const upgradedItem = craftingItem.apply(targetItem);
       
       return {
         ...updateStateAfterCrafting(
           { ...state, inventory: newInventory, pouch: newPouch },
           index,
-          upgradedMap,
+          upgradedItem,
           material
         ),
-        upgradedItem: { ...upgradedMap, index },
+        upgradedItem: { ...upgradedItem, index },
         continueCrafting: isShiftHeld
       };
     } else {
@@ -97,9 +113,21 @@ export const handleCraftingInteraction = (state, index, isShiftHeld) => {
     }
   }
   
-  if (material && targetItem && material.id === 'modifying_prism' && targetItem.isMapItem) {
-    return { ...state, tooltipMessage: "This map can't be upgraded further", continueCrafting: false };
+  if (material && targetItem && material.id in CRAFTABLE_ITEMS) {
+    return { ...state, tooltipMessage: `Cannot use ${material.name} on this item`, continueCrafting: false };
   }
   
   return { ...state, continueCrafting: false };
+};
+
+// Function to initialize craftable items
+export const initializeCraftableItems = () => {
+  ITEMS.forEach(item => {
+    if (item.usable && !CRAFTABLE_ITEMS[item.id]) {
+      CRAFTABLE_ITEMS[item.id] = {
+        apply: (targetItem) => targetItem, // Default behavior: do nothing
+        canApply: () => true // Default behavior: can be applied to anything
+      };
+    }
+  });
 };

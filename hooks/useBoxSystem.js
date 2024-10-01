@@ -1,34 +1,47 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useRef } from 'react';
 import { ITEMS, RARITY } from '../constants';
+import { openBox as openBoxLoot } from './boxLootSystem';
 
 const useBoxSystem = (gameState, setGameState) => {
   const [updatedBoxDrops, setUpdatedBoxDrops] = useState({});
+  const processingRef = useRef(false);
 
-  const openBox = useCallback((index) => {
+  const processBoxOpen = useCallback((boxIndex, keys = []) => {
+    if (processingRef.current) return;
+    processingRef.current = true;
+
     setGameState(prevState => {
       const newBoxesInventory = [...prevState.boxesInventory];
       const newBoxDrops = [...prevState.boxDrops];
       const newUpdatedBoxDrops = {};
       
-      // Remove the box from the boxes inventory
-      const box = newBoxesInventory[index];
-      newBoxesInventory[index] = null;
+      const box = newBoxesInventory[boxIndex];
+      if (!box) {
+        processingRef.current = false;
+        return prevState;
+      }
+      newBoxesInventory[boxIndex] = null;
 
-      // Generate loot (this is a placeholder, you should implement your own loot generation logic)
-      const loot = generateBoxLoot();
+      const loot = openBoxLoot(box, keys) || [];
 
-      // Add loot to box drops inventory (stacked and sorted)
+      if (loot.length === 0) {
+        processingRef.current = false;
+        return {
+          ...prevState,
+          boxesInventory: newBoxesInventory,
+          tooltipMessage: "The box was empty!"
+        };
+      }
+
       loot.forEach(item => {
-        if (item.id !== 'box') { // Prevent boxes from dropping boxes
+        if (item.id !== 'box') {
           const existingItemIndex = newBoxDrops.findIndex(slot => slot && slot.id === item.id);
           if (existingItemIndex !== -1) {
-            // Stack with existing item
             const existingItem = newBoxDrops[existingItemIndex];
             const newCount = Math.min(existingItem.count + item.count, existingItem.maxStack);
             newBoxDrops[existingItemIndex] = { ...existingItem, count: newCount };
             newUpdatedBoxDrops[existingItemIndex] = newBoxDrops[existingItemIndex];
           } else {
-            // Add new item
             const emptySlot = newBoxDrops.findIndex(slot => slot === null);
             if (emptySlot !== -1) {
               newBoxDrops[emptySlot] = item;
@@ -38,7 +51,6 @@ const useBoxSystem = (gameState, setGameState) => {
         }
       });
 
-      // Sort box drops inventory
       const sortedBoxDrops = newBoxDrops
         .filter(item => item !== null)
         .sort((a, b) => {
@@ -49,12 +61,12 @@ const useBoxSystem = (gameState, setGameState) => {
           return a.name.localeCompare(b.name);
         });
 
-      // Fill the rest with null
       while (sortedBoxDrops.length < newBoxDrops.length) {
         sortedBoxDrops.push(null);
       }
 
       setUpdatedBoxDrops(newUpdatedBoxDrops);
+      processingRef.current = false;
 
       return {
         ...prevState,
@@ -63,43 +75,82 @@ const useBoxSystem = (gameState, setGameState) => {
         tooltipMessage: `Opened a box and received ${loot.length} items!`
       };
     });
-  }, []);
+  }, [setGameState]);
+
+  const openBox = useCallback((index) => {
+    if (!processingRef.current) {
+      const box = gameState.boxesInventory[index];
+      if (!box) {
+        setGameState(prevState => ({
+          ...prevState,
+          tooltipMessage: "Invalid box"
+        }));
+        return;
+      }
+      if (box.id === 'simple_lockbox') {
+        const keyIndex = gameState.boxesInventory.findIndex(item => item && item.id === 'simple_key');
+        if (keyIndex === -1) {
+          setGameState(prevState => ({
+            ...prevState,
+            tooltipMessage: "You need a simple key to open this lockbox!"
+          }));
+          return;
+        }
+        const key = gameState.boxesInventory[keyIndex];
+        processBoxOpen(index, [key]);
+      } else {
+        processBoxOpen(index);
+      }
+    }
+  }, [gameState.boxesInventory, processBoxOpen]);
 
   const useKeyOnLockbox = useCallback((keyIndex, lockboxIndex) => {
+    console.log('useKeyOnLockbox called with:', { keyIndex, lockboxIndex });
     setGameState(prevState => {
-      const newBoxesInventory = [...prevState.boxesInventory];
-      const newBoxDrops = [...prevState.boxDrops];
-      const newUpdatedBoxDrops = {};
-      
-      const key = newBoxesInventory[keyIndex];
-      const lockbox = newBoxesInventory[lockboxIndex];
+      const key = prevState.boxesInventory[keyIndex];
+      const lockbox = prevState.boxesInventory[lockboxIndex];
 
-      if (key.id !== 'simple_key' || lockbox.id !== 'simple_lockbox') {
+      console.log('Key:', key);
+      console.log('Lockbox:', lockbox);
+
+      if (!key || !lockbox || key.id !== 'simple_key' || lockbox.id !== 'simple_lockbox') {
+        console.log('Invalid key or lockbox:', { key, lockbox });
         return {
           ...prevState,
           tooltipMessage: "Invalid key or lockbox"
         };
       }
 
-      // Remove the key and lockbox
-      newBoxesInventory[keyIndex] = null;
-      newBoxesInventory[lockboxIndex] = null;
+      console.log('Valid key and lockbox, proceeding to open');
 
-      // Generate loot (you can modify this to have different loot for lockboxes)
-      const loot = generateBoxLoot();
+      // Process the box opening with the key
+      const loot = openBoxLoot(lockbox, [key]) || [];
+      console.log('Loot generated:', loot);
 
-      // Add loot to box drops inventory (similar to openBox logic)
+      // Remove one key from the stack or remove the key if it's the last one
+      const newBoxesInventory = [...prevState.boxesInventory];
+      if (key.count > 1) {
+        newBoxesInventory[keyIndex] = { ...key, count: key.count - 1 };
+      } else {
+        newBoxesInventory[keyIndex] = null;
+      }
+      newBoxesInventory[lockboxIndex] = null; // Remove the lockbox
+
+      console.log('Updated boxes inventory:', newBoxesInventory);
+
+      // Add loot to box drops
+      const newBoxDrops = [...prevState.boxDrops];
+      const newUpdatedBoxDrops = {};
+
       loot.forEach(item => {
-        if (item.id !== 'box') { // Prevent boxes from dropping boxes
+        if (item.id !== 'box') {
           const existingItemIndex = newBoxDrops.findIndex(slot => slot && slot.id === item.id);
           if (existingItemIndex !== -1) {
-            // Stack with existing item
             const existingItem = newBoxDrops[existingItemIndex];
             const newCount = Math.min(existingItem.count + item.count, existingItem.maxStack);
             newBoxDrops[existingItemIndex] = { ...existingItem, count: newCount };
             newUpdatedBoxDrops[existingItemIndex] = newBoxDrops[existingItemIndex];
           } else {
-            // Add new item
             const emptySlot = newBoxDrops.findIndex(slot => slot === null);
             if (emptySlot !== -1) {
               newBoxDrops[emptySlot] = item;
@@ -109,7 +160,9 @@ const useBoxSystem = (gameState, setGameState) => {
         }
       });
 
-      // Sort box drops inventory
+      console.log('Updated box drops:', newBoxDrops);
+
+      // Sort box drops
       const sortedBoxDrops = newBoxDrops
         .filter(item => item !== null)
         .sort((a, b) => {
@@ -120,12 +173,17 @@ const useBoxSystem = (gameState, setGameState) => {
           return a.name.localeCompare(b.name);
         });
 
-      // Fill the rest with null
       while (sortedBoxDrops.length < newBoxDrops.length) {
         sortedBoxDrops.push(null);
       }
 
       setUpdatedBoxDrops(newUpdatedBoxDrops);
+
+      console.log('Final state update:', {
+        boxesInventory: newBoxesInventory,
+        boxDrops: sortedBoxDrops,
+        tooltipMessage: `Opened a lockbox and received ${loot.length} items!`
+      });
 
       return {
         ...prevState,
@@ -134,7 +192,7 @@ const useBoxSystem = (gameState, setGameState) => {
         tooltipMessage: `Opened a lockbox and received ${loot.length} items!`
       };
     });
-  }, []);
+  }, [openBoxLoot, setUpdatedBoxDrops]);
 
   const takeAllFromBoxDrops = useCallback(() => {
     setGameState(prevState => {
@@ -225,17 +283,6 @@ const useBoxSystem = (gameState, setGameState) => {
     setUpdatedBoxDrops,
     useKeyOnLockbox
   };
-};
-
-// Placeholder function for generating box loot
-const generateBoxLoot = () => {
-  // This is a simple placeholder. You should implement your own loot generation logic.
-  const lootCount = Math.floor(Math.random() * 3) + 1; // 1 to 3 items
-  return Array(lootCount).fill().map(() => {
-    const item = {...ITEMS[Math.floor(Math.random() * (ITEMS.length - 1))]}; // Exclude the last item (box) to prevent boxes from dropping boxes
-    item.count = Math.floor(Math.random() * 5) + 1;
-    return item;
-  });
 };
 
 export default useBoxSystem;
