@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 
 const InventorySlot = ({ item, index, handleItemInteraction, onMouseEnter, onMouseLeave, onMouseMove, className = 'inventory-slot', isActiveMap = false, isExploring = false, isCrafting = false }) => {
+  const [isHovering, setIsHovering] = useState(false);
+  const hoverTimeoutRef = useRef(null);
 
   const handleClick = (event) => {
     if (!handleItemInteraction || isExploring) return;
@@ -9,7 +11,7 @@ const InventorySlot = ({ item, index, handleItemInteraction, onMouseEnter, onMou
     const isCtrlClick = event.ctrlKey;
     const isRightClick = event.button === 2;
     const isShiftHeld = event.shiftKey;
-    handleItemInteraction(index, isCtrlClick, isRightClick, 'click', isShiftHeld);
+    handleItemInteraction(isCtrlClick, isRightClick, 'click', isShiftHeld);
   };
   
   const handleContextMenu = (event) => {
@@ -18,12 +20,46 @@ const InventorySlot = ({ item, index, handleItemInteraction, onMouseEnter, onMou
     if (!handleItemInteraction || isExploring) return;
 
     const isCtrlClick = event.ctrlKey;
-    const isRightClick = true;
     const isShiftHeld = event.shiftKey;
-    handleItemInteraction(index, isCtrlClick, isRightClick, 'contextmenu', isShiftHeld);
+    handleItemInteraction(isCtrlClick, true, 'contextmenu', isShiftHeld);
   };
 
-  // Use the item's actual name without modification
+  const handleMouseEnter = (e) => {
+    setIsHovering(true);
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    hoverTimeoutRef.current = setTimeout(() => {
+      if (item && onMouseEnter) {
+        onMouseEnter(e, item);
+      }
+    }, 50); // Small delay before showing tooltip
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovering(false);
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    if (onMouseLeave) {
+      onMouseLeave();
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (isHovering && item && onMouseMove) {
+      onMouseMove(e, item);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const displayName = item ? item.name : '';
 
   return (
@@ -31,9 +67,9 @@ const InventorySlot = ({ item, index, handleItemInteraction, onMouseEnter, onMou
       className={`${className} border border-gray-600`}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
-      onMouseEnter={(e) => item && onMouseEnter(e, item)}
-      onMouseLeave={onMouseLeave}
-      onMouseMove={(e) => item && onMouseMove(e, item)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onMouseMove={handleMouseMove}
       style={{
         borderColor: item && item.rarity ? item.rarity.color : undefined,
       }}

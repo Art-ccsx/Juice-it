@@ -87,16 +87,23 @@ const Tooltip = ({ item, position }) => {
           <p className="text-sm font-bold">Modifiers:</p>
           {item.modifiers.map((modifier, index) => (
             <div key={index} className="flex items-center my-1">
-              <div className="flex items-center mr-1"> {/* Reduced right margin */}
+              <div className="flex items-center mr-1">
                 {modifier.icon && (
                   <div className="relative w-6 h-6 mr-1">
-                    <Image src={modifier.icon} alt={modifier.name} layout="fill" objectFit="contain" />
+                    <Image 
+                      src={modifier.id.includes('conversion') ? '/assets/uncommon_upgrade.png' : modifier.icon} 
+                      alt={modifier.name} 
+                      layout="fill" 
+                      objectFit="contain" 
+                    />
                     {modifier.value && (
                       <div className="absolute top-0 right-0 text-xs font-bold" style={{
                         textShadow: '1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000',
                         fontSize: '0.6rem',
                       }}>
-                        +{modifier.value}
+                        {modifier.id.includes('percentage') || modifier.id.includes('chance') ? `${modifier.value}%` : 
+                         modifier.id.includes('quantity') || modifier.id.includes('conversion') ? `+${modifier.value}` :
+                         `${modifier.value}`}
                       </div>
                     )}
                   </div>
@@ -104,11 +111,6 @@ const Tooltip = ({ item, position }) => {
                 {modifier.itemIcon && (
                   <div className="w-6 h-6 mr-1">
                     <Image src={modifier.itemIcon} alt={modifier.name} width={24} height={24} />
-                  </div>
-                )}
-                {modifier.notchIcon && (
-                  <div className="w-6 h-6 mr-1">
-                    <Image src={modifier.notchIcon} alt="Notch" width={24} height={24} />
                   </div>
                 )}
               </div>

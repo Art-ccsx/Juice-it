@@ -112,6 +112,10 @@ export const MODIFIER_ICONS = {
   extra_drops: '/assets/extra_drop_symbol.png',
   green_notch: '/assets/green_notch.png',
   yellow_notch: '/assets/yellow_notch.png',
+  percentage: '/assets/percentage.png',
+  percentage_each: '/assets/percentage_each.png',
+  again: '/assets/again.png',
+  uncommon_upgrade: '/assets/uncommon_upgrade.png',
 };
 
 export const ITEM_ICONS = {

@@ -5,7 +5,7 @@ import { handleCtrlClick, handleRightClick, handleLeftClick } from './itemIntera
 import { handleCraftingInteraction, initializeCraftableItems } from './craftingLogic';
 import { getInventoryUpgradeCost, addInventorySlot as addInventorySlotUpgrade, addPouchSlot as addPouchSlotUpgrade, unlockBoxes } from './inventoryUpgrades';
 import useBoxSystem from './useBoxSystem';
-import { generateLockboxModifier } from './boxLootSystem';
+import { generateLockboxModifier, generateKeyModifier } from './boxLootSystem';
 
 const useInventory = (gameState, setGameState) => {
   const { openBox, takeAllFromBoxDrops, clearBoxDrops, useKeyOnLockbox } = useBoxSystem(gameState, setGameState);
@@ -15,26 +15,95 @@ const useInventory = (gameState, setGameState) => {
     initializeCraftableItems();
   }, []);
 
+  const upgradeKey = useCallback((keyIndex) => {
+    return setGameState(prevState => {
+      const key = prevState.boxesInventory[keyIndex];
+      if (!key || key.id !== 'simple_key' || key.rarity.name !== 'Common') {
+        return prevState;
+      }
+
+      const modifier = generateKeyModifier();
+      const upgradedKey = {
+        ...key,
+        rarity: RARITY.UNCOMMON,
+        modifiers: [modifier],
+        name: modifier.appendToEnd ? `Key ${modifier.name}` : `${modifier.name.replace('of ', '')} Key`,
+      };
+
+      const newBoxesInventory = [...prevState.boxesInventory];
+      newBoxesInventory[keyIndex] = upgradedKey;
+
+      return {
+        ...prevState,
+        boxesInventory: newBoxesInventory,
+      };
+    });
+  }, []);
+
   const handleItemInteraction = useCallback((index, isCtrlClick, isRightClick, mouseEvent, isShiftHeld) => {
+    console.log('handleItemInteraction called:', { index, isCtrlClick, isRightClick, mouseEvent, isShiftHeld });
+    
     setGameState(prevState => {
+      console.log('setGameState in handleItemInteraction, current state:', prevState);
+      
       if (prevState.craftingItem && prevState.heldItem) return prevState;
 
       let newState = { ...prevState };
 
+      // Remove the check for duplicate actions
+      // const actionKey = `${index}-${isCtrlClick}-${isRightClick}-${mouseEvent}`;
+      // if (newState.lastProcessedAction === actionKey) {
+      //   console.log('Duplicate action detected, ignoring');
+      //   return prevState;
+      // }
+      // newState.lastProcessedAction = actionKey;
+
       if (isCtrlClick) {
         newState = handleCtrlClick(newState, index);
       } else if (isRightClick) {
+        console.log('Right-click detected in handleItemInteraction');
         if (typeof index === 'string' && index.startsWith('boxes_')) {
           const boxIndex = parseInt(index.split('_')[1]);
           const item = newState.boxesInventory[boxIndex];
+          console.log('Right-clicked item in boxes inventory:', item);
           if (item && (item.usable || item.id === 'simple_key')) {
+            console.log('Setting craftingItem:', item);
             newState.craftingItem = item;
-            newState.tooltipMessage = `${item.name} selected. Click on a ${item.id === 'simple_key' ? 'lockbox' : 'item'} to use it.`;
             return newState;
           }
         }
         newState = handleRightClick(newState, index);
       } else if (!isRightClick && mouseEvent === 'click') {
+        if (newState.craftingItem && newState.craftingItem.id === 'modifying_prism') {
+          if (typeof index === 'string' && index.startsWith('boxes_')) {
+            const boxIndex = parseInt(index.split('_')[1]);
+            const item = newState.boxesInventory[boxIndex];
+            if (item && item.id === 'simple_key' && item.rarity.name === 'Common') {
+              upgradeKey(boxIndex);
+              const prismIndex = newState.inventory.findIndex(i => i && i.id === 'modifying_prism');
+              if (prismIndex !== -1) {
+                newState.inventory[prismIndex].count -= 1;
+                if (newState.inventory[prismIndex].count === 0) {
+                  newState.inventory[prismIndex] = null;
+                }
+              }
+              if (!isShiftHeld) {
+                newState.craftingItem = null;
+              } else if (newState.inventory[prismIndex]) {
+                newState.craftingItem = { ...newState.inventory[prismIndex] };
+              } else {
+                newState.craftingItem = null;
+              }
+              return newState;
+            } else {
+              if (!isShiftHeld) {
+                newState.craftingItem = null;
+              }
+              return newState;
+            }
+          }
+        }
+        // Handle other click interactions
         if (typeof index === 'string') {
           if (index.startsWith('boxes_')) {
             const boxIndex = parseInt(index.split('_')[1]);
@@ -48,7 +117,6 @@ const useInventory = (gameState, setGameState) => {
                 if (!isShiftHeld) {
                   newState.craftingItem = null;
                 } else {
-                  // If shift is held, keep the crafting item, but update its count
                   const updatedKey = newState.boxesInventory[keyIndex];
                   newState.craftingItem = updatedKey ? { ...updatedKey } : null;
                 }
@@ -58,11 +126,9 @@ const useInventory = (gameState, setGameState) => {
               }
             } else if (newState.heldItem && (newState.heldItem.id === 'box' || newState.heldItem.id === 'simple_lockbox' || newState.heldItem.id === 'simple_key')) {
               newState = handleLeftClick(newState, index, (state, idx) => handleCraftingInteraction(state, idx, isShiftHeld));
-            } else {
-              return newState;
             }
           } else if (index.startsWith('boxDrops_')) {
-            return newState;
+            // Handle box drops interactions if needed
           } else {
             // This is for the main inventory or other non-box inventories
             if (newState.craftingItem && newState.craftingItem.usable) {
@@ -91,9 +157,10 @@ const useInventory = (gameState, setGameState) => {
         delete newState.upgradedItem;
       }
 
+      console.log('Final state after handleItemInteraction:', newState);
       return newState;
     });
-  }, [openBox, useKeyOnLockbox]);
+  }, [openBox, useKeyOnLockbox, upgradeKey]);
 
   const getMap = useCallback(() => {
     setGameState(prevState => {
@@ -208,37 +275,27 @@ const useInventory = (gameState, setGameState) => {
   }, []);
 
   const spawnItem = useCallback((itemId) => {
-    console.log('Spawning item:', itemId);
     setGameState(prevState => {
       const itemToSpawn = [...ITEMS, MAP_ITEM].find(item => item.id === itemId);
-      console.log('Item to spawn:', itemToSpawn);
       if (!itemToSpawn) {
-        console.log('Item not found');
         return prevState;
       }
 
       if ((itemToSpawn.id === 'box' || itemToSpawn.id === 'simple_lockbox' || itemToSpawn.id === 'simple_key') && prevState.boxesUnlocked) {
-        console.log('Spawning box, lockbox, or key');
         const emptyBoxSlot = prevState.boxesInventory.findIndex(slot => slot === null);
-        console.log('Empty box slot index:', emptyBoxSlot);
         if (emptyBoxSlot !== -1) {
           const newBoxesInventory = [...prevState.boxesInventory];
           let spawnedItem = { ...itemToSpawn, count: 1 };
           
-          // Add a modifier if it's a lockbox
           if (itemToSpawn.id === 'simple_lockbox') {
-            console.log('Spawning lockbox, generating modifier');
             const modifier = generateLockboxModifier();
-            console.log('Generated modifier:', modifier);
             spawnedItem.modifiers = [modifier];
             spawnedItem.name = modifier.appendToEnd 
               ? `Lockbox ${modifier.name}`
               : `${modifier.name.replace('of ', '')} Lockbox`;
-            console.log('Final lockbox name:', spawnedItem.name);
           }
           
           newBoxesInventory[emptyBoxSlot] = spawnedItem;
-          console.log('Updated boxes inventory:', newBoxesInventory);
           return {
             ...prevState,
             boxesInventory: newBoxesInventory,
@@ -246,27 +303,39 @@ const useInventory = (gameState, setGameState) => {
             tooltipMessage: `Spawned 1 ${spawnedItem.name} into boxes and keys inventory`
           };
         } else {
-          console.log('No empty slots in boxes inventory');
           return {
             ...prevState,
             tooltipMessage: "No empty slots in boxes and keys inventory to spawn item!"
           };
         }
       } else {
-        console.log('Spawning regular item');
-        const emptySlot = prevState.inventory.findIndex(slot => slot === null);
-        console.log('Empty inventory slot index:', emptySlot);
+        const newInventory = [...prevState.inventory];
+        
+        if (itemToSpawn.stackable) {
+          const existingStackIndex = newInventory.findIndex(item => item && item.id === itemToSpawn.id && item.count < item.maxStack);
+          if (existingStackIndex !== -1) {
+            newInventory[existingStackIndex] = {
+              ...newInventory[existingStackIndex],
+              count: Math.min(newInventory[existingStackIndex].count + 1, itemToSpawn.maxStack)
+            };
+            return {
+              ...prevState,
+              inventory: newInventory,
+              discoveredItems: new Set([...prevState.discoveredItems, itemToSpawn.id]),
+              tooltipMessage: `Added 1 ${itemToSpawn.name} to existing stack`
+            };
+          }
+        }
+        
+        const emptySlot = newInventory.findIndex(slot => slot === null);
         if (emptySlot === -1) {
-          console.log('No empty slots in inventory');
           return {
             ...prevState,
             tooltipMessage: "No empty slots in inventory to spawn item!"
           };
         }
 
-        const newInventory = [...prevState.inventory];
         newInventory[emptySlot] = { ...itemToSpawn, count: 1 };
-        console.log('Updated inventory:', newInventory);
 
         return {
           ...prevState,
@@ -302,6 +371,7 @@ const useInventory = (gameState, setGameState) => {
     clearBoxDrops,
     upgradedItem,
     setUpgradedItem,
+    upgradeKey,
   };
 };
 

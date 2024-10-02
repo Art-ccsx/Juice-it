@@ -11,6 +11,7 @@ import Storage from './Storage';
 import Glossary from './Glossary';
 import Settings from './Settings';
 import InventorySlot from './InventorySlot';
+import BoxInventory from './BoxInventory';
 import Image from 'next/image';
 import { ITEMS, MAP_ITEM, INITIAL_INVENTORY_SIZE, INITIAL_POUCH_SIZE, INITIAL_BOXES_INVENTORY_SIZE, BOX_DROPS_INVENTORY_SIZE } from '../constants';
 import useGameState from '../hooks/useGameState';
@@ -19,13 +20,15 @@ import useInventory from '../hooks/useInventory';
 import useSaveLoad from '../hooks/useSaveLoad';
 import useBoxSystem from '../hooks/useBoxSystem';
 import ItemParticles from './ItemParticles';
+import { useActionQueue } from '../hooks/useActionQueue';
 
 const IncrementalGame = () => {
   const { gameState, setGameState, activeTab, setActiveTab, leftActiveTab, setLeftActiveTab } = useGameState();
   const { startExploration, completeExploration, abandonExploration, processLootTick } = useExploration(gameState, setGameState);
-  const { handleItemInteraction, addInventorySlot, addPouchSlot, getMap, getInventoryUpgradeCost, clearStorage, sortStorage, takeAllFromPouch, craftingItem, unlockBoxes, spawnItem, openBox, takeAllFromBoxDrops, clearBoxDrops, upgradedItem, setUpgradedItem } = useInventory(gameState, setGameState);
+  const { handleItemInteraction, addInventorySlot, addPouchSlot, getMap, getInventoryUpgradeCost, clearStorage, sortStorage, takeAllFromPouch, craftingItem, unlockBoxes, spawnItem, takeAllFromBoxDrops, clearBoxDrops, upgradedItem, setUpgradedItem } = useInventory(gameState, setGameState);
   const { saveGame, loadGame, exportGame, importGame, lastSaveTime, showSaveMessage } = useSaveLoad(gameState, setGameState, activeTab, setActiveTab);
-  const { updatedBoxDrops, setUpdatedBoxDrops } = useBoxSystem(gameState, setGameState);
+  const { updatedBoxDrops, setUpdatedBoxDrops, openBox } = useBoxSystem(gameState, setGameState);
+  const addAction = useActionQueue();
 
   const [tooltipItem, setTooltipItem] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
@@ -33,7 +36,7 @@ const IncrementalGame = () => {
   const [selectedItem, setSelectedItem] = useState(null);
 
   const handleMouseEnter = useCallback((e, item) => {
-    if (item) {
+    if (item && e && e.currentTarget) {
       const rect = e.currentTarget.getBoundingClientRect();
       const viewportWidth = window.innerWidth;
       const spaceOnRight = viewportWidth - rect.right;
@@ -55,9 +58,12 @@ const IncrementalGame = () => {
     }
   }, []);
 
-  const handleMouseMove = useCallback((e) => {
+  const handleMouseMove = useCallback((e, item) => {
     setMousePosition({ x: e.clientX, y: e.clientY });
-  }, []);
+    if (item && e) {
+      handleMouseEnter(e, item);
+    }
+  }, [handleMouseEnter]);
 
   const handleMouseLeave = useCallback(() => {
     setTooltipItem(null);
@@ -141,7 +147,6 @@ const IncrementalGame = () => {
   }, [gameState.inventory]);
 
   const debugSpawnItem = useCallback((item) => {
-    console.log(`Debug spawning item:`, item);
     spawnItem(item.id);
   }, [spawnItem]);
 
@@ -250,21 +255,14 @@ const IncrementalGame = () => {
         return (
           <div className="flex">
             <div className="w-1/2 pr-2">
-              <h3 className="text-xl font-bold mb-2">Boxes and Keys</h3>
-              <div className="flex flex-wrap mb-4">
-                {gameState.boxesInventory.map((item, index) => (
-                  <InventorySlot
-                    key={index}
-                    item={item}
-                    index={`boxes_${index}`}
-                    handleItemInteraction={handleItemInteraction}
-                    onMouseEnter={handleMouseEnter}
-                    onMouseLeave={handleMouseLeave}
-                    onMouseMove={handleMouseMove}
-                    className="inventory-slot w-8 h-8"
-                  />
-                ))}
-              </div>
+              <BoxInventory 
+                gameState={gameState} 
+                setGameState={setGameState} 
+                handleItemInteraction={handleItemInteraction}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+                onMouseMove={handleMouseMove}
+              />
             </div>
             <div className="w-1/2 pl-2">
               <h3 className="text-xl font-bold mb-2">Box Drops</h3>
@@ -459,7 +457,7 @@ const IncrementalGame = () => {
             onMouseMove={handleMouseMove}
             clearStorage={clearStorage}
             sortStorage={sortStorage}
-            craftingItem={craftingItem}
+            craftingItem={gameState.craftingItem}
           />
         </div>
 
@@ -581,18 +579,6 @@ const IncrementalGame = () => {
               width={36}
               height={36}
             />
-          </div>
-        )}
-        {gameState.tooltipMessage && (
-          <div 
-            className="fixed bg-black bg-opacity-75 text-white p-2 rounded"
-            style={{ 
-              left: mousePosition.x + 10,
-              top: mousePosition.y + 10,
-              zIndex: 1001
-            }}
-          >
-            {gameState.tooltipMessage}
           </div>
         )}
         {upgradedItem && upgradedItem.position && (

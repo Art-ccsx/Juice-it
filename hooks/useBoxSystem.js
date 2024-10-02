@@ -1,167 +1,92 @@
-import { useCallback, useState, useRef } from 'react';
+import { useCallback, useState, useRef, useEffect } from 'react';
 import { ITEMS, RARITY } from '../constants';
 import { openBox as openBoxLoot } from './boxLootSystem';
 
 const useBoxSystem = (gameState, setGameState) => {
   const [updatedBoxDrops, setUpdatedBoxDrops] = useState({});
+  const [pendingAction, setPendingAction] = useState(null);
   const processingRef = useRef(false);
 
-  const processBoxOpen = useCallback((boxIndex) => {
-    if (processingRef.current) return;
-    processingRef.current = true;
-
-    setGameState(prevState => {
-      const newBoxesInventory = [...prevState.boxesInventory];
-      const newBoxDrops = [...prevState.boxDrops];
-      const newUpdatedBoxDrops = {};
+  useEffect(() => {
+    if (pendingAction && !processingRef.current) {
+      processingRef.current = true;
       
-      const box = newBoxesInventory[boxIndex];
-      console.log('Opening box:', box);
-      if (!box) {
-        console.log('No box found at index:', boxIndex);
-        processingRef.current = false;
-        return prevState;
-      }
-      newBoxesInventory[boxIndex] = null;
+      setGameState(prevState => {
+        let newState = { ...prevState };
+        let loot = [];
 
-      const loot = openBoxLoot(box);
-      console.log('Loot generated:', loot);
-
-      if (loot.length === 0) {
-        console.log('Box was empty');
-        processingRef.current = false;
-        return {
-          ...prevState,
-          boxesInventory: newBoxesInventory,
-          tooltipMessage: "The box was empty!"
-        };
-      }
-
-      loot.forEach((item, index) => {
-        console.log(`Processing loot item ${index}:`, item);
-        const emptyDropSlot = newBoxDrops.findIndex(slot => slot === null);
-        if (emptyDropSlot !== -1) {
-          console.log(`Adding ${item.id} to box drops at index:`, emptyDropSlot);
-          newBoxDrops[emptyDropSlot] = item;
-          newUpdatedBoxDrops[emptyDropSlot] = item;
-        } else {
-          console.log(`No empty slot in box drops, ${item.id} is lost`);
+        if (pendingAction.type === 'openBox') {
+          const box = newState.boxesInventory[pendingAction.boxIndex];
+          if (!box || box.id !== 'box') {
+            console.log('Not a valid box, ignoring open request');
+            processingRef.current = false;
+            return prevState;
+          }
+          loot = openBoxLoot(box);
+          newState.boxesInventory[pendingAction.boxIndex] = null;
+        } else if (pendingAction.type === 'openLockbox') {
+          const { keyIndex, lockboxIndex } = pendingAction;
+          const key = newState.boxesInventory[keyIndex];
+          const lockbox = newState.boxesInventory[lockboxIndex];
+          if (!key || !lockbox || key.id !== 'simple_key' || lockbox.id !== 'simple_lockbox') {
+            processingRef.current = false;
+            return { ...prevState, tooltipMessage: "Invalid key or lockbox" };
+          }
+          loot = openBoxLoot(lockbox, [key]) || [];
+          newState.boxesInventory[keyIndex] = key.count > 1 ? { ...key, count: key.count - 1 } : null;
+          newState.boxesInventory[lockboxIndex] = null;
         }
-      });
 
-      console.log('New box drops before sorting:', newBoxDrops);
+        if (loot.length === 0) {
+          processingRef.current = false;
+          return { ...newState, tooltipMessage: "The box was empty!" };
+        }
 
-      const sortedBoxDrops = newBoxDrops
-        .filter(item => item !== null)
-        .sort((a, b) => {
-          const rarityOrder = [RARITY.LEGENDARY, RARITY.EPIC, RARITY.RARE, RARITY.UNCOMMON, RARITY.COMMON];
-          const rarityDiffA = rarityOrder.findIndex(r => r.name === a.rarity.name);
-          const rarityDiffB = rarityOrder.findIndex(r => r.name === b.rarity.name);
-          if (rarityDiffA !== rarityDiffB) return rarityDiffA - rarityDiffB;
-          return a.name.localeCompare(b.name);
+        const newBoxDrops = [...newState.boxDrops];
+        const newUpdatedBoxDrops = {};
+
+        loot.forEach(item => {
+          const emptySlot = newBoxDrops.findIndex(slot => slot === null);
+          if (emptySlot !== -1) {
+            newBoxDrops[emptySlot] = item;
+            newUpdatedBoxDrops[emptySlot] = item;
+          }
         });
 
-      while (sortedBoxDrops.length < newBoxDrops.length) {
-        sortedBoxDrops.push(null);
-      }
+        const sortedBoxDrops = newBoxDrops
+          .filter(item => item !== null)
+          .sort((a, b) => {
+            const rarityOrder = [RARITY.LEGENDARY, RARITY.EPIC, RARITY.RARE, RARITY.UNCOMMON, RARITY.COMMON];
+            const rarityDiffA = rarityOrder.findIndex(r => r.name === a.rarity.name);
+            const rarityDiffB = rarityOrder.findIndex(r => r.name === b.rarity.name);
+            if (rarityDiffA !== rarityDiffB) return rarityDiffA - rarityDiffB;
+            return a.name.localeCompare(b.name);
+          });
 
-      console.log('Sorted box drops:', sortedBoxDrops);
-      console.log('Updated boxes inventory:', newBoxesInventory);
-      console.log('Updated box drops:', sortedBoxDrops);
-      console.log('New updated box drops:', newUpdatedBoxDrops);
+        while (sortedBoxDrops.length < newBoxDrops.length) {
+          sortedBoxDrops.push(null);
+        }
 
-      setUpdatedBoxDrops(newUpdatedBoxDrops);
-      processingRef.current = false;
+        setUpdatedBoxDrops(newUpdatedBoxDrops);
+        processingRef.current = false;
 
-      const finalState = {
-        ...prevState,
-        boxesInventory: newBoxesInventory,
-        boxDrops: sortedBoxDrops,
-        tooltipMessage: `Opened a box and received ${loot.length} items!`
-      };
+        return {
+          ...newState,
+          boxDrops: sortedBoxDrops,
+          tooltipMessage: `Opened a ${pendingAction.type === 'openBox' ? 'box' : 'lockbox'} and received ${loot.length} items!`
+        };
+      });
 
-      console.log('Final state update:', finalState);
+      setPendingAction(null);
+    }
+  }, [pendingAction, setGameState]);
 
-      return finalState;
-    });
-  }, [setGameState]);
+  const processBoxOpen = useCallback((boxIndex) => {
+    setPendingAction({ type: 'openBox', boxIndex });
+  }, []);
 
   const useKeyOnLockbox = useCallback((keyIndex, lockboxIndex) => {
-    console.log('useKeyOnLockbox called with:', { keyIndex, lockboxIndex });
-    setGameState(prevState => {
-      const key = prevState.boxesInventory[keyIndex];
-      const lockbox = prevState.boxesInventory[lockboxIndex];
-
-      console.log('Key:', key);
-      console.log('Lockbox:', lockbox);
-
-      if (!key || !lockbox || key.id !== 'simple_key' || lockbox.id !== 'simple_lockbox') {
-        console.log('Invalid key or lockbox:', { key, lockbox });
-        return {
-          ...prevState,
-          tooltipMessage: "Invalid key or lockbox"
-        };
-      }
-
-      console.log('Valid key and lockbox, proceeding to open');
-
-      const loot = openBoxLoot(lockbox, [key]) || [];
-      console.log('Loot generated:', loot);
-
-      const newBoxesInventory = [...prevState.boxesInventory];
-      if (key.count > 1) {
-        newBoxesInventory[keyIndex] = { ...key, count: key.count - 1 };
-      } else {
-        newBoxesInventory[keyIndex] = null;
-      }
-      newBoxesInventory[lockboxIndex] = null;
-
-      console.log('Updated boxes inventory:', newBoxesInventory);
-
-      const newBoxDrops = [...prevState.boxDrops];
-      const newUpdatedBoxDrops = {};
-
-      loot.forEach(item => {
-        const emptySlot = newBoxDrops.findIndex(slot => slot === null);
-        if (emptySlot !== -1) {
-          newBoxDrops[emptySlot] = item;
-          newUpdatedBoxDrops[emptySlot] = item;
-        } else {
-          console.log(`No empty slot in box drops, ${item.id} is lost`);
-        }
-      });
-
-      console.log('Updated box drops:', newBoxDrops);
-
-      const sortedBoxDrops = newBoxDrops
-        .filter(item => item !== null)
-        .sort((a, b) => {
-          const rarityOrder = [RARITY.LEGENDARY, RARITY.EPIC, RARITY.RARE, RARITY.UNCOMMON, RARITY.COMMON];
-          const rarityDiffA = rarityOrder.findIndex(r => r.name === a.rarity.name);
-          const rarityDiffB = rarityOrder.findIndex(r => r.name === b.rarity.name);
-          if (rarityDiffA !== rarityDiffB) return rarityDiffA - rarityDiffB;
-          return a.name.localeCompare(b.name);
-        });
-
-      while (sortedBoxDrops.length < newBoxDrops.length) {
-        sortedBoxDrops.push(null);
-      }
-
-      setUpdatedBoxDrops(newUpdatedBoxDrops);
-
-      console.log('Final state update:', {
-        boxesInventory: newBoxesInventory,
-        boxDrops: sortedBoxDrops,
-        tooltipMessage: `Opened a lockbox and received ${loot.length} items!`
-      });
-
-      return {
-        ...prevState,
-        boxesInventory: newBoxesInventory,
-        boxDrops: sortedBoxDrops,
-        tooltipMessage: `Opened a lockbox and received ${loot.length} items!`
-      };
-    });
+    setPendingAction({ type: 'openLockbox', keyIndex, lockboxIndex });
   }, []);
 
   const takeAllFromBoxDrops = useCallback(() => {

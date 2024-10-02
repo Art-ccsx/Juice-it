@@ -27,6 +27,9 @@ const KEY_MODIFIER_TYPES = {
   RARITY_BOOST: 'key_rarity_boost',
   QUANTITY_BOOST: 'key_quantity_boost',
   SPECIFIC_ITEM_BOOST: 'key_specific_item_boost',
+  LASTING_KEY: 'lasting_key',
+  COMMON_CONVERSION_CHANCE: 'common_conversion_chance',
+  GUARANTEED_COMMON_CONVERSION: 'guaranteed_common_conversion',
 };
 
 // Define lockbox modifier types
@@ -107,39 +110,24 @@ const LOCKBOX_MODIFIERS = [
 // Loot table for different box/compartment types
 const LOOT_TABLES = {
   [BOX_TYPES.SIMPLE]: {
-    COMMON: 0.6,
+    COMMON: 0.7,
     UNCOMMON: 0.3,
-    RARE: 0.08,
-    EPIC: 0.018,
-    LEGENDARY: 0.002,
   },
   [BOX_TYPES.LOCKBOX]: {
-    COMMON: 0.4,
-    UNCOMMON: 0.35,
-    RARE: 0.18,
-    EPIC: 0.058,
-    LEGENDARY: 0.012,
+    COMMON: 0.6,
+    UNCOMMON: 0.4,
   },
   [COMPARTMENT_TYPES.STANDARD]: {
-    COMMON: 0.5,
-    UNCOMMON: 0.35,
-    RARE: 0.12,
-    EPIC: 0.025,
-    LEGENDARY: 0.005,
+    COMMON: 0.7,
+    UNCOMMON: 0.3,
   },
   [COMPARTMENT_TYPES.RARE]: {
-    COMMON: 0.3,
+    COMMON: 0.6,
     UNCOMMON: 0.4,
-    RARE: 0.2,
-    EPIC: 0.08,
-    LEGENDARY: 0.02,
   },
   [COMPARTMENT_TYPES.LEGENDARY]: {
-    COMMON: 0.1,
-    UNCOMMON: 0.2,
-    RARE: 0.3,
-    EPIC: 0.3,
-    LEGENDARY: 0.1,
+    COMMON: 0.5,
+    UNCOMMON: 0.5,
   },
 };
 
@@ -148,18 +136,45 @@ const ITEM_POOLS = {
   [BOX_TYPES.SIMPLE]: {
     COMMON: ['shinies', 'enriching_juice'],
     UNCOMMON: ['modifying_prism'],
-    RARE: ['modifying_prism'],
-    EPIC: ['modifying_prism'],
-    LEGENDARY: ['modifying_prism'],
   },
   [BOX_TYPES.LOCKBOX]: {
     COMMON: ['shinies', 'enriching_juice'],
     UNCOMMON: ['modifying_prism'],
-    RARE: ['modifying_prism'],
-    EPIC: ['modifying_prism'],
-    LEGENDARY: ['modifying_prism'],
   },
 };
+
+// Define key modifiers
+const KEY_MODIFIERS = [
+  {
+    id: KEY_MODIFIER_TYPES.LASTING_KEY,
+    name: 'Lasting Key',
+    description: 'Has +{x}% chance of not being used',
+    minValue: 5,
+    maxValue: 10,
+    chance: 0.20,
+    icon: MODIFIER_ICONS.again,
+  },
+  {
+    id: KEY_MODIFIER_TYPES.COMMON_CONVERSION_CHANCE,
+    name: 'of Common Conversion Chance',
+    description: 'Each common reward has a +{x}% chance to convert into uncommon',
+    minValue: 10,
+    maxValue: 60,
+    chance: 0.40,
+    icon: MODIFIER_ICONS.uncommon_upgrade,
+    itemIcon: ITEM_ICONS.common,
+  },
+  {
+    id: KEY_MODIFIER_TYPES.GUARANTEED_COMMON_CONVERSION,
+    name: 'of Guaranteed Common Conversion',
+    description: 'Converts up to {x} common rewards into uncommon',
+    minValue: 1,
+    maxValue: 2,
+    chance: 0.40,
+    icon: MODIFIER_ICONS.uncommon_upgrade,
+    itemIcon: ITEM_ICONS.common,
+  },
+];
 
 // Function to apply key modifiers
 const applyKeyModifiers = (loot, keyModifiers) => {
@@ -211,6 +226,32 @@ const generateLockboxModifier = () => {
   
   // Fallback to extra common drops if somehow no modifier was selected
   const fallbackModifier = LOCKBOX_MODIFIERS[0];
+  return {
+    ...fallbackModifier,
+    value: Math.floor(Math.random() * (fallbackModifier.maxValue - fallbackModifier.minValue + 1)) + fallbackModifier.minValue,
+    appendToEnd: fallbackModifier.name.startsWith('of')
+  };
+};
+
+// Function to generate a random modifier for a key
+const generateKeyModifier = () => {
+  const roll = Math.random();
+  let cumulativeProbability = 0;
+  
+  for (const modifier of KEY_MODIFIERS) {
+    cumulativeProbability += modifier.chance;
+    if (roll < cumulativeProbability) {
+      const value = Math.floor(Math.random() * (modifier.maxValue - modifier.minValue + 1)) + modifier.minValue;
+      return {
+        ...modifier,
+        value,
+        appendToEnd: modifier.name.startsWith('of')
+      };
+    }
+  }
+  
+  // Fallback to lasting key if somehow no modifier was selected
+  const fallbackModifier = KEY_MODIFIERS[0];
   return {
     ...fallbackModifier,
     value: Math.floor(Math.random() * (fallbackModifier.maxValue - fallbackModifier.minValue + 1)) + fallbackModifier.minValue,
@@ -421,4 +462,4 @@ const openBox = (box, keys = []) => {
   return loot;
 };
 
-export { openBox, BOX_TYPES, COMPARTMENT_TYPES, MODIFIER_TYPES, KEY_MODIFIER_TYPES, LOCKBOX_MODIFIER_TYPES, generateLockboxModifier, generateLoot };
+export { openBox, BOX_TYPES, COMPARTMENT_TYPES, MODIFIER_TYPES, KEY_MODIFIER_TYPES, LOCKBOX_MODIFIER_TYPES, generateLockboxModifier, generateLoot, KEY_MODIFIERS, generateKeyModifier };
